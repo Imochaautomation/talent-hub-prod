@@ -2,7 +2,7 @@
 dockerfilePath = "Dockerfile"
 
 [deploy]
-startCommand = "node_modules/.bin/prisma migrate deploy && node dist/scripts/ensureAdmin.js && node dist/index.js"
+startCommand = "node dist/index.js"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 300
 restartPolicyType = "ALWAYS"
