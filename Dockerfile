@@ -2,8 +2,6 @@
 FROM node:20-alpine AS frontend-build
 
 WORKDIR /app
-
-# shared types are aliased as @shared in the frontend
 COPY shared/ ./shared/
 
 WORKDIR /app/frontend
@@ -14,7 +12,7 @@ COPY frontend/ .
 RUN npm run build
 
 
-# ─── Stage 2: Build Backend ───────────────────────────────────
+# ─── Stage 2: Compile TypeScript ──────────────────────────────
 FROM node:20-slim AS backend-build
 
 RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
@@ -35,15 +33,14 @@ RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists
 
 WORKDIR /app/backend
 
-COPY --from=backend-build /app/backend/node_modules ./node_modules
-COPY --from=backend-build /app/backend/dist ./dist
-COPY --from=backend-build /app/backend/package.json ./package.json
-
+# Install production deps fresh in this image so all native binaries
+# (Prisma query engine) are compiled for this exact runtime environment.
+COPY backend/package*.json ./
 COPY backend/prisma ./prisma
+RUN npm ci --only=production --no-audit --no-fund
 
-# Regenerate Prisma client in the production image so the query engine
-# binary is built for this exact OS — avoids binary mismatch crashes.
-RUN npx prisma generate
+# Compiled JS from build stage
+COPY --from=backend-build /app/backend/dist ./dist
 
 # Frontend dist — Express serves this as the SPA
 COPY --from=frontend-build /app/frontend/dist /app/frontend/dist
