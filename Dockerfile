@@ -46,7 +46,6 @@ COPY --from=backend-build /app/backend/dist ./dist
 COPY --from=frontend-build /app/frontend/dist /app/frontend/dist
 
 ENV NODE_ENV=production
-ENV PORT=3001
-EXPOSE 3001
+EXPOSE 8080
 
 CMD ["node", "dist/index.js"]
