@@ -53,5 +53,4 @@ ENV NODE_ENV=production
 ENV PORT=3001
 EXPOSE 3001
 
-# Run migrations then start the server
-CMD ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node dist/index.js"]
+CMD ["node", "dist/index.js"]
