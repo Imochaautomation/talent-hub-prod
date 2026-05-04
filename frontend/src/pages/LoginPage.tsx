@@ -106,7 +106,7 @@ export default function LoginPage() {
                 autoComplete="email"
                 {...register('email')}
                 className={cn('ul-field', errors.email && 'ul-field-err')}
-                placeholder="admin@company.com"
+                placeholder="vijuadmin@imocha.io"
               />
               {errors.email && (
                 <p className="text-[11px] text-red-400 mt-1.5">{errors.email.message}</p>

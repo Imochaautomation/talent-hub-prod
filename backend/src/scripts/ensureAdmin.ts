@@ -4,7 +4,7 @@ import { prisma } from '../lib/prisma';
 import logger from '../lib/logger';
 
 async function ensureAdmin() {
-  const email = (process.env.ADMIN_EMAIL || 'admin@company.com').trim().toLowerCase();
+  const email = (process.env.ADMIN_EMAIL || 'vijuadmin@imocha.io').trim().toLowerCase();
   const password = process.env.ADMIN_PASSWORD?.trim();
   const name = (process.env.ADMIN_NAME || 'HR Admin').trim();
 
