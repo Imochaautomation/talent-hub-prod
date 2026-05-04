@@ -17,10 +17,12 @@ RUN npm run build
 # ─── Stage 2: Build Backend ───────────────────────────────────
 FROM node:20-slim AS backend-build
 
+# Prisma's native query engine requires OpenSSL
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app/backend
 COPY backend/package*.json ./
-# Prisma schema must exist before `npm ci` because the package.json
-# `postinstall` script runs `prisma generate`.
+# Prisma schema must exist before `npm ci` because postinstall runs `prisma generate`
 COPY backend/prisma ./prisma
 RUN npm ci --no-audit --no-fund
 
@@ -32,9 +34,11 @@ RUN npx tsc
 # ─── Stage 3: Production Image ────────────────────────────────
 FROM node:20-slim AS production
 
+# Prisma's native query engine requires OpenSSL at runtime too
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app/backend
 
-# Copy built artifacts from build stage
 COPY --from=backend-build /app/backend/node_modules ./node_modules
 COPY --from=backend-build /app/backend/dist ./dist
 COPY --from=backend-build /app/backend/package.json ./package.json
