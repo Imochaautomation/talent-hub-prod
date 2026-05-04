@@ -1,0 +1,28 @@
+**/node_modules
+**/.git
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+**/npm-debug.log*
+**/yarn-debug.log*
+**/yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode
+.idea
+
+# Local dev
+docker-compose.yml
+start.sh
+stop.sh
+docs/
+*.xls
+*.xlsx
+
+# Claude Code memory
+.claude/

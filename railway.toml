@@ -1,0 +1,8 @@
+[build]
+dockerfilePath = "Dockerfile"
+
+[deploy]
+startCommand = "node_modules/.bin/prisma migrate deploy && node dist/index.js"
+healthcheckPath = "/api/health"
+healthcheckTimeout = 120
+restartPolicyType = "ALWAYS"
