@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import http from 'http';
+import bcrypt from 'bcryptjs';
 import app from './app';
 import { initializeSocket } from './lib/socket';
 import { redisClient } from './lib/redis';
@@ -24,6 +25,25 @@ async function bootstrap() {
     // ─── Test DB Connection ──────────────────────────────────
     await prisma.$connect();
     logger.info('✅ PostgreSQL connected');
+
+    // ─── Seed Admin User (non-fatal) ────────────────────────
+    // Runs on every boot but is a no-op if the user already exists.
+    // Set ADMIN_EMAIL + ADMIN_PASSWORD in Railway Variables to configure.
+    try {
+      const adminEmail    = process.env.ADMIN_EMAIL    || 'admin@talenhub.com';
+      const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@123';
+      const adminName     = process.env.ADMIN_NAME     || 'HR Admin';
+      const existing = await prisma.user.findUnique({ where: { email: adminEmail } });
+      if (!existing) {
+        const hashed = await bcrypt.hash(adminPassword, 12);
+        await prisma.user.create({
+          data: { email: adminEmail, password: hashed, name: adminName, role: 'ADMIN' },
+        });
+        logger.info(`✅ Admin user created: ${adminEmail}`);
+      }
+    } catch (adminErr: any) {
+      logger.warn('⚠️  Admin seed skipped:', adminErr.message);
+    }
 
     // ─── Test Redis Connection (non-fatal) ──────────────────
     try {
