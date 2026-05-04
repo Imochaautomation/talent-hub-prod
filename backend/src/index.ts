@@ -25,9 +25,13 @@ async function bootstrap() {
     await prisma.$connect();
     logger.info('✅ PostgreSQL connected');
 
-    // ─── Test Redis Connection ───────────────────────────────
-    await redisClient.ping();
-    logger.info('✅ Redis connected');
+    // ─── Test Redis Connection (non-fatal) ──────────────────
+    try {
+      await redisClient.ping();
+      logger.info('✅ Redis connected');
+    } catch (redisErr: any) {
+      logger.warn('⚠️  Redis unavailable — caching and real-time events degraded:', redisErr.message);
+    }
 
     // ─── Create HTTP Server ──────────────────────────────────
     const server = http.createServer(app);
