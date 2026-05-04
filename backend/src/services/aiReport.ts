@@ -13,7 +13,9 @@ import { anthropic } from '../lib/claudeClient';
 import { gatherOrgSnapshot } from './orgSnapshot';
 import logger from '../lib/logger';
 
-const MODEL = 'claude-sonnet-4-6';
+const MODEL = process.env.OPENROUTER_API_KEY
+  ? 'anthropic/claude-sonnet-4-5'
+  : 'claude-sonnet-4-6';
 
 const REPORT_SECTIONS = [
   {

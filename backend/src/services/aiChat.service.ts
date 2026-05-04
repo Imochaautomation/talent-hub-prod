@@ -12,7 +12,9 @@ const HISTORY_TTL   = 7 * 24 * 60 * 60; // 7 days
 const SESSIONS_TTL  = 30 * 24 * 60 * 60; // 30 days
 const MAX_HISTORY   = 40;
 const MAX_SESSIONS  = 20;
-const MODEL        = 'claude-sonnet-4-6';
+const MODEL = process.env.OPENROUTER_API_KEY
+  ? 'anthropic/claude-sonnet-4-5'
+  : 'claude-sonnet-4-6';
 
 const SYSTEM_PROMPT = `You are the AI compensation intelligence assistant for this organisation.
 You have access to real-time HR data via tools. ALWAYS use tools to get current data before answering — never guess or fabricate numbers.

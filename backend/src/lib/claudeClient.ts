@@ -1,11 +1,17 @@
 import Anthropic from '@anthropic-ai/sdk';
 import logger from './logger';
 
+const useOpenRouter = !!process.env.OPENROUTER_API_KEY;
+
 export const anthropic = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY || '',
+  apiKey: useOpenRouter
+    ? process.env.OPENROUTER_API_KEY!
+    : (process.env.ANTHROPIC_API_KEY || ''),
+  ...(useOpenRouter && { baseURL: 'https://openrouter.ai/api/v1' }),
 });
 
-const MODEL = 'claude-sonnet-4-6';
+// OpenRouter model names use "anthropic/" prefix
+const MODEL = useOpenRouter ? 'anthropic/claude-sonnet-4-5' : 'claude-sonnet-4-6';
 
 export interface ClaudeResponse {
   content: string;
