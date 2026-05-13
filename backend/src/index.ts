@@ -30,7 +30,7 @@ async function bootstrap() {
     // Runs on every boot but is a no-op if the user already exists.
     // Set ADMIN_EMAIL + ADMIN_PASSWORD in Railway Variables to configure.
     try {
-      const adminEmail    = process.env.ADMIN_EMAIL    || 'admin@talenhub.com';
+      const adminEmail    = process.env.ADMIN_EMAIL    || 'vijuadmin@imocha.io';
       const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@123';
       const adminName     = process.env.ADMIN_NAME     || 'HR Admin';
       const existing = await prisma.user.findUnique({ where: { email: adminEmail } });

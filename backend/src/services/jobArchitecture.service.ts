@@ -1,4 +1,6 @@
 import { prisma } from '../lib/prisma';
+import { emitSalaryBandUpdated } from '../lib/socket';
+import { cacheDelPattern } from '../lib/redis';
 import type {
   CreateJobAreaInput,
   UpdateJobAreaInput,
@@ -35,9 +37,18 @@ export const jobArchitectureService = {
     return prisma.jobArea.findMany({
       include: {
         jobFamilies: {
+          orderBy: { name: 'asc' },
           include: {
             jobCodes: {
-              include: { band: true, grade: true },
+              orderBy: [{ band: { level: 'asc' } }, { code: 'asc' }],
+              include: {
+                band: true,
+                grade: true,
+                employees: {
+                  select: { id: true, firstName: true, lastName: true },
+                  orderBy: { firstName: 'asc' },
+                },
+              },
             },
           },
         },
@@ -161,7 +172,10 @@ export const jobArchitectureService = {
       }
       throw conflict('BAND_LEVEL_EXISTS', `Band level ${data.level} already exists (band ${dup.code})`);
     }
-    return prisma.band.create({ data });
+    const created = await prisma.band.create({ data });
+    await cacheDelPattern('salary-bands:*');
+    emitSalaryBandUpdated();
+    return created;
   },
 
   updateBand: async (id: string, data: UpdateBandInput) => {
@@ -175,7 +189,10 @@ export const jobArchitectureService = {
       const dup = await prisma.band.findFirst({ where: { level: data.level, NOT: { id } } });
       if (dup) throw conflict('BAND_LEVEL_EXISTS', `Band level ${data.level} already exists`);
     }
-    return prisma.band.update({ where: { id }, data });
+    const updated = await prisma.band.update({ where: { id }, data });
+    await cacheDelPattern('salary-bands:*');
+    emitSalaryBandUpdated();
+    return updated;
   },
 
   deleteBand: async (id: string) => {
@@ -218,11 +235,14 @@ export const jobArchitectureService = {
       );
     }
 
-    return prisma.$transaction(async (tx) => {
+    const deleted = await prisma.$transaction(async (tx) => {
       // Null out optional FK on market benchmarks
       await tx.marketBenchmark.updateMany({ where: { bandId: id }, data: { bandId: null } });
       return tx.band.delete({ where: { id } });
     });
+    await cacheDelPattern('salary-bands:*');
+    emitSalaryBandUpdated();
+    return deleted;
   },
 
   // ─── Grade ────────────────────────────────────────────────────

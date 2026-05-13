@@ -1,8 +1,8 @@
 import { useState, useRef } from 'react';
 import { FileText, Sparkles, Printer, RefreshCw, ChevronRight } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
-import { useAuthStore } from '../store/authStore';
 import { cn } from '../lib/utils';
+import { getValidToken } from '../lib/streamAuth';
 
 interface Section {
   title: string;
@@ -21,7 +21,6 @@ const SECTION_TITLES = [
 const SECTION_ICONS = ['📊', '🚨', '⚖️', '💡', '📋'];
 
 export default function LeadershipReportPage() {
-  const { accessToken } = useAuthStore();
   const [sections, setSections] = useState<Section[]>([]);
   const [currentSection, setCurrentSection] = useState<number>(-1);
   const [generating, setGenerating] = useState(false);
@@ -40,15 +39,20 @@ export default function LeadershipReportPage() {
     abortRef.current = new AbortController();
 
     try {
+      const token = await getValidToken();
       const response = await fetch('/api/ai/report/stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         signal: abortRef.current.signal,
       });
 
+      if (response.status === 401) {
+        window.location.href = '/login';
+        return;
+      }
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
@@ -92,11 +96,14 @@ export default function LeadershipReportPage() {
               return next;
             });
           } else if (eventType === 'text') {
+            // Sections stream in parallel — route delta by index when present,
+            // fall back to last section for backwards compatibility with older
+            // sequential responses.
             setSections(prev => {
               const next = [...prev];
-              const last = next.length - 1;
-              if (last >= 0) {
-                next[last] = { ...next[last], content: next[last].content + (payload.delta ?? '') };
+              const target = typeof payload.index === 'number' ? payload.index : next.length - 1;
+              if (target >= 0 && next[target]) {
+                next[target] = { ...next[target], content: next[target].content + (payload.delta ?? '') };
               }
               return next;
             });

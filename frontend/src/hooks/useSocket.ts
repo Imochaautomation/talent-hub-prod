@@ -122,6 +122,8 @@ export function useSocket() {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['pay-equity'] });
       queryClient.invalidateQueries({ queryKey: ['salary-bands'] });
+      queryClient.invalidateQueries({ queryKey: ['bands'] });
+      queryClient.invalidateQueries({ queryKey: ['job-architecture', 'hierarchy'] });
     });
 
     return () => {

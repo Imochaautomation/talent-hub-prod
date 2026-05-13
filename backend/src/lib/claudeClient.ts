@@ -7,7 +7,9 @@ export const anthropic = new Anthropic({
   apiKey: useOpenRouter
     ? process.env.OPENROUTER_API_KEY!
     : (process.env.ANTHROPIC_API_KEY || ''),
-  ...(useOpenRouter && { baseURL: 'https://openrouter.ai/api/v1' }),
+  // OpenRouter exposes the Anthropic API at /api/v1/messages.
+  // The SDK appends /v1/messages to baseURL, so use /api here (not /api/v1).
+  ...(useOpenRouter && { baseURL: 'https://openrouter.ai/api' }),
 });
 
 // OpenRouter model names use "anthropic/" prefix

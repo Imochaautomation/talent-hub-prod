@@ -59,29 +59,37 @@ export async function streamLeadershipReport(res: Response): Promise<void> {
     const snapshot = await gatherOrgSnapshot();
     const ctx = buildContext(snapshot);
 
+    // Announce all sections upfront so the UI can render placeholders.
     for (let i = 0; i < REPORT_SECTIONS.length; i++) {
-      const section = REPORT_SECTIONS[i];
-      send('section_start', { index: i, title: section.title });
-
-      const stream = await anthropic.messages.stream({
-        model: MODEL,
-        max_tokens: 800,
-        system: SYSTEM_INSTRUCTION,
-        messages: [{ role: 'user', content: section.prompt(ctx) }],
-      });
-
-      for await (const event of stream) {
-        if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
-          send('text', { delta: event.delta.text });
-        }
-      }
-
-      send('section_end', { index: i });
-      logger.info(`[AI Report] Section ${i + 1}/${REPORT_SECTIONS.length} complete: "${section.title}"`);
+      send('section_start', { index: i, title: REPORT_SECTIONS[i].title });
     }
 
+    // Run all 5 Claude streams in parallel. Deltas are tagged with `index` so
+    // the frontend routes them to the correct section even though chunks
+    // from different sections interleave on the wire.
+    // Writes to the SSE response are serialized by Node's single-threaded
+    // event loop — safe under concurrent emitters.
+    const t0 = Date.now();
+    await Promise.all(
+      REPORT_SECTIONS.map(async (section, index) => {
+        const stream = await anthropic.messages.stream({
+          model: MODEL,
+          max_tokens: 800,
+          system: SYSTEM_INSTRUCTION,
+          messages: [{ role: 'user', content: section.prompt(ctx) }],
+        });
+        for await (const event of stream) {
+          if (event.type === 'content_block_delta' && event.delta.type === 'text_delta') {
+            send('text', { delta: event.delta.text, index });
+          }
+        }
+        send('section_end', { index });
+        logger.info(`[AI Report] Section ${index + 1}/${REPORT_SECTIONS.length} complete: "${section.title}"`);
+      })
+    );
+
     send('done', {});
-    logger.info('[AI Report] Report generation complete');
+    logger.info(`[AI Report] Report generation complete in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   } catch (err: any) {
     logger.error('[AI Report] Error:', err);
     send('error', { message: err.message || 'Report generation failed' });

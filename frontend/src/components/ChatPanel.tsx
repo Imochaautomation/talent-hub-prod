@@ -5,6 +5,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Sparkles, X, Send, Trash2, ChevronDown, Loader2, Bot, User } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { getValidToken } from '../lib/streamAuth';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -78,7 +79,7 @@ export function ChatPanel() {
 
     setMessages(prev => [...prev, { role: 'assistant', content: '', isStreaming: true, activeTools: [] }]);
 
-    const token = sessionStorage.getItem('accessToken');
+    const token = await getValidToken();
     const ctrl  = new AbortController();
     abortRef.current = ctrl;
 
@@ -93,6 +94,7 @@ export function ChatPanel() {
         signal: ctrl.signal,
       });
 
+      if (resp.status === 401) { window.location.href = '/login'; return; }
       if (!resp.ok || !resp.body) throw new Error(`HTTP ${resp.status}`);
 
       const reader  = resp.body.getReader();
