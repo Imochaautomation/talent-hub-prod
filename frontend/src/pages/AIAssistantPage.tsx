@@ -7,6 +7,7 @@ import { Sparkles, Send, Trash2, Bot, User, Loader2, Info, Clock, MessageSquare,
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '../lib/utils';
+import { getValidToken } from '../lib/streamAuth';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -261,37 +262,6 @@ export default function AIAssistantPage() {
     if (viewingSession?.meta.id === id) setViewingSession(null);
   };
 
-  // Get a valid access token — refreshing silently if expired
-  const getValidToken = async (): Promise<string | null> => {
-    const token = sessionStorage.getItem('accessToken');
-    if (!token) return null;
-
-    // Check expiry by decoding payload (no crypto needed — just base64)
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const expiresAt = payload.exp * 1000;
-      if (expiresAt - Date.now() > 60_000) return token; // valid for >1 min
-    } catch { return token; } // if decode fails, try using it anyway
-
-    // Token expired — try silent refresh
-    const refreshToken = sessionStorage.getItem('refreshToken');
-    if (!refreshToken) { window.location.href = '/login'; return null; }
-
-    try {
-      const r = await fetch('/api/auth/refresh', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
-      });
-      if (!r.ok) { window.location.href = '/login'; return null; }
-      const { data } = await r.json();
-      sessionStorage.setItem('accessToken', data.accessToken);
-      return data.accessToken;
-    } catch {
-      window.location.href = '/login';
-      return null;
-    }
-  };
 
   const sendMessage = useCallback(async (text: string) => {
     const msg = text.trim();

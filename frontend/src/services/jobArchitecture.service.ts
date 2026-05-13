@@ -97,6 +97,26 @@ export const jobArchitectureService = {
     await api.delete(`/job-codes/${id}`);
   },
 
+  // ── Employee detail fetch ────────────────────────────────────────────
+  getEmployee: async (id: string) => {
+    const res = await api.get<{ data: any }>(`/employees/${id}`);
+    return res.data;
+  },
+
+  // ── Employee ↔ Job Code linking ─────────────────────────────────────
+  searchEmployees: async (q: string) => {
+    const res = await api.get<{ data: any[] }>(`/employees?search=${encodeURIComponent(q)}&limit=10`);
+    return res.data;
+  },
+  linkEmployee: async (employeeId: string, jobCodeId: string) => {
+    const res = await api.put<{ data: any }>(`/employees/${employeeId}`, { jobCodeId });
+    return res.data;
+  },
+  unlinkEmployee: async (employeeId: string) => {
+    const res = await api.put<{ data: any }>(`/employees/${employeeId}`, { jobCodeId: null });
+    return res.data;
+  },
+
   // ── Skills ──────────────────────────────────────────────────────────
   getSkills: async () => {
     const res = await api.get<{ data: any[] }>('/skills');

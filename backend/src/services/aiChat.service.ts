@@ -505,7 +505,14 @@ export async function streamChat(
     await saveHistory(userId, messages);
     onDone();
   } catch (err: any) {
-    logger.error('AI chat error:', err.message);
+    logger.error('AI chat error:', {
+      name: err?.name,
+      message: err?.message,
+      status: err?.status,
+      type: err?.error?.type,
+      providerError: err?.error?.error?.message ?? err?.error?.message,
+      stack: err?.stack?.split('\n').slice(0, 6).join('\n'),
+    });
     onError(err instanceof Error ? err : new Error(String(err)));
   }
 }

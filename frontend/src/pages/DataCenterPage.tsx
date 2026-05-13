@@ -46,6 +46,7 @@ function UploadCard({
 }: UploadCardProps) {
   const [mode, setMode] = useState<'upsert' | 'replace'>('upsert');
   const [uploading, setUploading] = useState(false);
+  const [uploadPct, setUploadPct] = useState(0);
   const [result, setResult] = useState<UploadResult | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -140,15 +141,28 @@ function UploadCard({
     abortControllerRef.current = new AbortController();
     if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
     setUploading(true);
+    setUploadPct(0);
     setResult(null);
     setProcessing(false);
     setProgress(null);
     setImportComplete(null);
+    const uploadStartedAt = Date.now();
     try {
       const formData = new FormData();
       formData.append('file', file);
       const url = acceptModes ? `${uploadEndpoint}?mode=${mode}` : uploadEndpoint;
-      const res = await api.post(url, formData, { signal: abortControllerRef.current.signal });
+      const res = await api.post(url, formData, {
+        signal: abortControllerRef.current.signal,
+        onUploadProgress: (e) => {
+          if (e.total) setUploadPct(Math.round((e.loaded / e.total) * 100));
+          else if (e.loaded) setUploadPct(99);
+        },
+      });
+      setUploadPct(100);
+      // Hold the 100% bar long enough to be perceptible — Vite proxies the
+      // upload over loopback so small files complete in <100ms.
+      const elapsed = Date.now() - uploadStartedAt;
+      if (elapsed < 800) await new Promise(r => setTimeout(r, 800 - elapsed));
       const data: UploadResult = res.data?.data ?? res.data;
       setResult(data);
       if (data.message) {
@@ -250,9 +264,17 @@ function UploadCard({
           onChange={e => handleFile(e.target.files?.[0])}
         />
         {uploading ? (
-          <div className="flex flex-col items-center gap-2">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
-            <p className="text-sm text-muted-foreground">Uploading…</p>
+          <div className="flex flex-col items-center gap-3 w-full max-w-md mx-auto">
+            <div className="flex items-center gap-2">
+              <Loader2 className="w-5 h-5 text-primary animate-spin" />
+              <p className="text-sm font-medium text-foreground tabular-nums">Uploading… {uploadPct}%</p>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-primary transition-all duration-150"
+                style={{ width: `${uploadPct}%` }}
+              />
+            </div>
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
