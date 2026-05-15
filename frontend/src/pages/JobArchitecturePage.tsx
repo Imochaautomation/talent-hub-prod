@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Layers, ChevronRight, ChevronDown, Building2,
   Briefcase, Tag, Star, Search, Pencil, Plus,
-  Trash2, X, Check, Loader2, CheckCheck, Users,
+  Trash2, X, Check, Loader2, CheckCheck, Users, Lock,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { jobArchitectureService } from '../services/jobArchitecture.service';
@@ -12,6 +12,7 @@ import AddEmployeeModal from '../components/employees/AddEmployeeModal';
 import { queryKeys, STALE_TIMES } from '../lib/queryClient';
 import { useAuthStore } from '../store/authStore';
 import { cn } from '../lib/utils';
+import { BAND_ORDER } from '../../../shared/constants';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -81,17 +82,32 @@ function getCleanTitle(title: string): string {
 }
 
 const BAND_COLORS: Record<string, string> = {
+  // Associate
   A1: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',
-  A2: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
-  P1: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
-  P2: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
-  P3: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
+  A2: 'bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-200',
+  A3: 'bg-slate-300 text-slate-900 dark:bg-slate-600 dark:text-slate-100',
+  // Professional
+  P1: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
+  P2: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
+  P3: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300',
+  P4: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-300',
+  // Manager
+  M0: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300',
   M1: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
   M2: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+  M3: 'bg-orange-200 text-orange-800 dark:bg-orange-900/60 dark:text-orange-200',
+  // Director
   D0: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
   D1: 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300',
-  D2: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
-  P4: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-300',
+  D2: 'bg-red-200 text-red-800 dark:bg-red-900/60 dark:text-red-200',
+  // VP
+  V0: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
+  V1: 'bg-pink-200 text-pink-800 dark:bg-pink-900/60 dark:text-pink-200',
+  V2: 'bg-pink-300 text-pink-900 dark:bg-pink-900/80 dark:text-pink-100',
+  // Executive
+  E0: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+  E1: 'bg-emerald-200 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-200',
+  E2: 'bg-emerald-300 text-emerald-900 dark:bg-emerald-900/80 dark:text-emerald-100',
 };
 
 const AREA_COLORS = [
@@ -472,7 +488,7 @@ function JobCodeDetailModal({ jc, canEdit, onClose, onSaved }: {
     onSuccess: (_: any, empId: string) => {
       setLinkedEmps(prev => prev.filter((e: any) => e.id !== empId));
       toast.success('Employee removed');
-      onSaved();
+      // Don't refresh the full hierarchy — only local state changes so the tree order stays stable
     },
     onError: () => toast.error('Failed to remove employee'),
   });
@@ -483,7 +499,7 @@ function JobCodeDetailModal({ jc, canEdit, onClose, onSaved }: {
       setLinkedEmps(prev => [...prev, emp]);
       setShowSearch(false); setEmpQuery(''); setEmpResults([]);
       toast.success('Employee added');
-      onSaved();
+      // Don't refresh the full hierarchy — only local state changes so the tree order stays stable
     },
     onError: () => toast.error('Failed to add employee'),
   });
@@ -705,30 +721,7 @@ function JobCodeDetailModal({ jc, canEdit, onClose, onSaved }: {
   );
 }
 
-// ─── Tree connector (horizontal bar + vertical drop) ─────────────────────────
-
-// NODE_W constants — single source of truth for node widths
-const NODE_W = { area: 'w-full', family: 'w-[220px]', role: 'w-[205px]', emp: 'w-[175px]' };
-
-function TreeConnector({ index, total, dim = false }: { index: number; total: number; dim?: boolean }) {
-  const isFirst = index === 0;
-  const isLast  = index === total - 1;
-  const isOnly  = total === 1;
-  const vColor  = dim ? 'bg-border/40' : 'bg-border/55';
-  const hColor  = dim ? 'bg-border/35' : 'bg-border/50';
-
-  return (
-    <div className="relative w-full flex justify-center" style={{ height: 32 }}>
-      {!isOnly && (
-        <div
-          className={cn('absolute top-0 h-[2px] rounded-full', hColor)}
-          style={{ left: isFirst ? '50%' : '0%', right: isLast ? '50%' : '0%' }}
-        />
-      )}
-      <div className={cn('w-[2px] h-full rounded-full', vColor)} />
-    </div>
-  );
-}
+// ─── (tree connector removed — replaced by tab-based navigation) ─────────────
 
 // ─── Employee Detail Modal ────────────────────────────────────────────────────
 
@@ -924,50 +917,52 @@ function EmployeeDetailModal({ employeeId, employeeName, onClose }: {
   );
 }
 
-// ─── Employee Box (leaf node) ─────────────────────────────────────────────────
+// ─── Employee Tag (inline clickable chip inside a role row) ──────────────────
 
-function EmployeeBox({ name, employeeId }: { name: string; employeeId: string | null }) {
+function EmployeeTag({ name, employeeId }: { name: string; employeeId: string | null }) {
   const [showDetail, setShowDetail] = useState(false);
   const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-
   return (
     <>
-      <div
-        className={cn(NODE_W.emp, 'rounded-xl border border-primary/25 bg-primary/6 shadow-sm cursor-pointer hover:shadow-md hover:border-primary/45 hover:bg-primary/10 transition-all overflow-hidden')}
-        onClick={() => setShowDetail(true)}
+      <button
+        onClick={e => { e.stopPropagation(); setShowDetail(true); }}
+        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-primary/25 bg-primary/6 hover:bg-primary/12 hover:border-primary/45 transition-all text-[10.5px] font-semibold text-foreground/85 max-w-[160px] w-full"
+        style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
       >
-        <div className="flex items-center gap-2.5 px-3 py-2.5">
-          <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-            <span className="text-[10px] font-bold text-primary">{initials}</span>
-          </div>
-          <p
-            className="text-[11px] font-semibold text-foreground/85 leading-snug flex-1 min-w-0"
-            style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
-          >
-            {name}
-          </p>
-        </div>
-      </div>
-
+        <span className="w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+          <span className="text-[8px] font-bold text-primary leading-none">{initials}</span>
+        </span>
+        <span className="truncate">{name}</span>
+      </button>
       {showDetail && (
-        <EmployeeDetailModal
-          employeeId={employeeId}
-          employeeName={name}
-          onClose={() => setShowDetail(false)}
-        />
+        <EmployeeDetailModal employeeId={employeeId} employeeName={name} onClose={() => setShowDetail(false)} />
       )}
     </>
   );
 }
 
-// ─── Role Card ────────────────────────────────────────────────────────────────
+// ─── Role Row (horizontal row with employee tags and Vacant state) ────────────
 
-function RoleCard({ jc, bands, editMode, canEdit, onRefresh }: {
+function RoleRow({ jc, bands, editMode, canEdit, onRefresh }: {
   jc: any; bands: any[]; editMode: boolean; canEdit: boolean; onRefresh: () => void;
 }) {
   const [modal, setModal] = useState<'detail' | 'edit' | 'delete' | null>(null);
-
   const displayTitle = getCleanTitle(jc.title);
+  const embeddedNames = extractEmployeeNames(jc.title);
+  type EmpEntry = { id: string | null; name: string };
+  const dbEmps: EmpEntry[] = (jc.employees ?? []).map((e: any) => ({ id: e.id, name: `${e.firstName} ${e.lastName}` }));
+  const seen = new Set<string>();
+  const allEmps: EmpEntry[] = [];
+  for (const name of embeddedNames) {
+    const key = name.toLowerCase();
+    const dbMatch = dbEmps.find(e => e.name.toLowerCase() === key);
+    allEmps.push(dbMatch ?? { id: null, name });
+    seen.add(key);
+  }
+  for (const e of dbEmps) {
+    if (!seen.has(e.name.toLowerCase())) { seen.add(e.name.toLowerCase()); allEmps.push(e); }
+  }
+  const isVacant = allEmps.length === 0;
 
   const del = useMutation({
     mutationFn: () => jobArchitectureService.deleteJobCode(jc.id),
@@ -978,217 +973,68 @@ function RoleCard({ jc, bands, editMode, canEdit, onRefresh }: {
   return (
     <>
       <div
-        className={cn(NODE_W.role, 'group rounded-xl border border-border/55 bg-card shadow-sm hover:shadow-md hover:border-primary/35 transition-all cursor-pointer flex flex-col overflow-hidden')}
+        className="group flex items-center gap-4 px-4 py-3 rounded-lg hover:bg-muted/30 border border-transparent hover:border-border/30 transition-all cursor-pointer"
         onClick={() => setModal('detail')}
       >
-        {/* Card body */}
-        <div className="p-3 flex flex-col gap-1.5 flex-1">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {jc.band && <BandPill code={jc.band.code} label={jc.band.label} isRSU={jc.band.isEligibleForRSU} />}
-            {jc.grade && (
-              <span className="text-[9px] text-muted-foreground px-1.5 py-0.5 rounded-md border border-border/50 bg-muted/30">
-                {jc.grade.gradeCode}
+        <div className="flex items-center gap-2 flex-shrink-0 w-[190px] min-w-0">
+          {jc.band && <BandPill code={jc.band.code} label={jc.band.label} isRSU={jc.band.isEligibleForRSU} />}
+          <span className="font-mono text-[10px] text-muted-foreground/55 tracking-wide truncate">{jc.code}</span>
+          {jc.grade && <span className="text-[9px] text-muted-foreground px-1 py-0.5 rounded border border-border/40 bg-muted/30 flex-shrink-0">{jc.grade.gradeCode}</span>}
+        </div>
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <span className="text-sm font-semibold text-foreground flex-1 min-w-0 leading-snug">{displayTitle}</span>
+          <div className="flex flex-col gap-1 w-[190px] flex-shrink-0" onClick={e => e.stopPropagation()}>
+            {isVacant ? (
+              <span className="inline-flex items-center gap-1.5 text-[11px] italic text-muted-foreground/55 px-2.5 py-1 rounded-full border border-dashed border-border/40 bg-muted/15 w-fit">
+                <span className="w-1.5 h-1.5 rounded-full bg-border/50 flex-shrink-0" />Vacant
               </span>
+            ) : (
+              <>
+                {allEmps.slice(0, 3).map(emp => <EmployeeTag key={emp.name} name={emp.name} employeeId={emp.id} />)}
+                {allEmps.length > 3 && (
+                  <span className="text-[10px] font-semibold text-primary/70 px-2 py-0.5 rounded-full bg-primary/8 border border-primary/20 w-fit cursor-default select-none">
+                    +{allEmps.length - 3} more
+                  </span>
+                )}
+              </>
             )}
           </div>
-          <p className="font-mono text-[10px] text-muted-foreground/50 tracking-wider leading-none">{jc.code}</p>
-          <p className="text-[11px] font-semibold text-foreground leading-snug">{displayTitle}</p>
         </div>
-
-        {/* Edit / delete footer — always visible in edit mode */}
         {editMode && (
-          <div
-            className="flex items-center border-t border-border/25 bg-muted/20"
-            onClick={e => e.stopPropagation()}
-          >
-            <button onClick={() => setModal('edit')} className="flex-1 flex items-center justify-center gap-1 py-1.5 hover:bg-primary/10 text-muted-foreground hover:text-primary text-[10px] transition-colors">
-              <Pencil className="w-2.5 h-2.5" /> Edit
-            </button>
-            <div className="w-px h-4 bg-border/30" />
-            <button onClick={() => setModal('delete')} className="flex-1 flex items-center justify-center gap-1 py-1.5 hover:bg-destructive/8 text-muted-foreground hover:text-destructive text-[10px] transition-colors">
-              <Trash2 className="w-2.5 h-2.5" /> Delete
-            </button>
+          <div className="flex gap-1 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
+            <button onClick={() => setModal('edit')} className="p-1.5 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
+            <button onClick={() => setModal('delete')} className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
           </div>
         )}
+        <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/25 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" />
       </div>
-
-      {modal === 'detail' && (
-        <JobCodeDetailModal jc={jc} canEdit={canEdit} onClose={() => setModal(null)} onSaved={() => { setModal(null); onRefresh(); }} />
-      )}
-      {modal === 'edit' && (
-        <JobCodeModal jobCode={jc} bands={bands} onClose={() => setModal(null)} onSaved={() => { setModal(null); onRefresh(); }} />
-      )}
-      {modal === 'delete' && (
-        <DeleteConfirm label={`${jc.code} — ${jc.title}`} onConfirm={() => del.mutate()} onCancel={() => setModal(null)} loading={del.isPending} />
-      )}
+      {modal === 'detail' && <JobCodeDetailModal jc={jc} canEdit={canEdit} onClose={() => setModal(null)} onSaved={() => { setModal(null); onRefresh(); }} />}
+      {modal === 'edit' && <JobCodeModal jobCode={jc} bands={bands} onClose={() => setModal(null)} onSaved={() => { setModal(null); onRefresh(); }} />}
+      {modal === 'delete' && <DeleteConfirm label={`${jc.code} — ${jc.title}`} onConfirm={() => del.mutate()} onCancel={() => setModal(null)} loading={del.isPending} />}
     </>
   );
 }
 
-// ─── Role Column (role card + employee boxes branching below) ─────────────────
+// ─── Area Section (family tabs + role column layout) ─────────────────────────
 
-function RoleColumn({ jc, bands, index, total, editMode, canEdit, onRefresh }: {
-  jc: any; bands: any[]; index: number; total: number;
-  editMode: boolean; canEdit: boolean; onRefresh: () => void;
-}) {
-  const embeddedNames = extractEmployeeNames(jc.title);
-
-  type EmpEntry = { id: string | null; name: string };
-  const dbEmps: EmpEntry[] = (jc.employees ?? []).map((e: any) => ({
-    id: e.id,
-    name: `${e.firstName} ${e.lastName}`,
-  }));
-
-  // Merge embedded names + DB-linked, dedup by lowercase name, prefer DB ID when names match
-  const seen = new Set<string>();
-  const allEmps: EmpEntry[] = [];
-
-  for (const name of embeddedNames) {
-    const key = name.toLowerCase();
-    const dbMatch = dbEmps.find(e => e.name.toLowerCase() === key);
-    allEmps.push(dbMatch ?? { id: null, name });
-    seen.add(key);
-  }
-  for (const e of dbEmps) {
-    if (!seen.has(e.name.toLowerCase())) {
-      seen.add(e.name.toLowerCase());
-      allEmps.push(e);
-    }
-  }
-
-  return (
-    <div className="flex flex-col items-center px-1.5">
-      <TreeConnector index={index} total={total} dim />
-      <RoleCard jc={jc} bands={bands} editMode={editMode} canEdit={canEdit} onRefresh={onRefresh} />
-
-      {allEmps.length > 0 && (
-        <>
-          <div className="w-[2px] h-6 rounded-full bg-border/35" />
-          <div className="flex items-start">
-            {allEmps.map((emp, idx) => (
-              <div key={emp.name} className="flex flex-col items-center px-1">
-                <TreeConnector index={idx} total={allEmps.length} dim />
-                <EmployeeBox name={emp.name} employeeId={emp.id} />
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-// ─── Family Column (node + roles below it) ────────────────────────────────────
-
-function FamilyColumn({ family, bands, index, total, accentColor, editMode, canEdit, onRefresh }: {
-  family: any; bands: any[]; index: number; total: number; accentColor: string;
-  editMode: boolean; canEdit: boolean; onRefresh: () => void;
-}) {
-  const [open, setOpen] = useState(true);
-  const [modal, setModal] = useState<'edit' | 'delete' | 'add-role' | null>(null);
-
-  const sortedJobCodes = [...(family.jobCodes ?? [])].sort((a: any, b: any) => {
-    const diff = (a.band?.level ?? 999) - (b.band?.level ?? 999);
-    return diff !== 0 ? diff : a.code.localeCompare(b.code);
-  });
-
-  const del = useMutation({
-    mutationFn: () => jobArchitectureService.deleteJobFamily(family.id),
-    onSuccess: () => { toast.success('Job family deleted'); onRefresh(); setModal(null); },
-    onError: () => toast.error('Failed to delete job family'),
-  });
-
-  return (
-    <>
-      <div className="flex flex-col items-center px-2">
-        {/* Connector from area root to this family */}
-        <TreeConnector index={index} total={total} />
-
-        {/* Family node — left border in area accent color */}
-        <div
-          className={cn(NODE_W.family, 'rounded-xl border border-border/45 bg-card overflow-hidden shadow-sm')}
-          style={{ borderLeftColor: accentColor, borderLeftWidth: 3 }}
-        >
-          <button
-            onClick={() => setOpen(o => !o)}
-            className="w-full flex items-center gap-2.5 px-3 py-3 hover:bg-muted/30 transition-colors text-left"
-          >
-            <Briefcase className="w-3.5 h-3.5 flex-shrink-0" style={{ color: accentColor, opacity: 0.8 }} />
-            <span className="text-sm font-semibold text-foreground flex-1 min-w-0 leading-snug">{family.name}</span>
-            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full border flex-shrink-0"
-                  style={{ color: accentColor, borderColor: `${accentColor}40`, backgroundColor: `${accentColor}10` }}>
-              {sortedJobCodes.length}
-            </span>
-            {open
-              ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/50 flex-shrink-0" />
-              : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50 flex-shrink-0" />}
-          </button>
-          {editMode && (
-            <div className="flex items-center border-t border-border/20 bg-muted/15" onClick={e => e.stopPropagation()}>
-              <button
-                onClick={() => { setModal('add-role'); setOpen(true); }}
-                className="flex items-center gap-1 px-2.5 py-1.5 text-[10px] font-medium transition-colors hover:bg-primary/10 text-primary"
-              >
-                <Plus className="w-2.5 h-2.5" /> Add Role
-              </button>
-              <div className="flex items-center gap-0.5 ml-auto pr-1.5">
-                <button onClick={() => setModal('edit')} className="p-1.5 rounded-md hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors">
-                  <Pencil className="w-2.5 h-2.5" />
-                </button>
-                <button onClick={() => setModal('delete')} className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
-                  <Trash2 className="w-2.5 h-2.5" />
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Roles fanning out below this family */}
-        {open && sortedJobCodes.length > 0 && (
-          <div className="flex flex-col items-center">
-            {/* Short vertical line from family down to role connector bar */}
-            <div className="w-[2px] h-7 rounded-full bg-border/45" />
-            {/* Role columns — each may have employee boxes branching below */}
-            <div className="flex items-start">
-              {sortedJobCodes.map((jc: any, idx: number) => (
-                <RoleColumn
-                  key={jc.id}
-                  jc={jc}
-                  bands={bands}
-                  index={idx}
-                  total={sortedJobCodes.length}
-                  editMode={editMode}
-                  canEdit={canEdit}
-                  onRefresh={onRefresh}
-                />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {open && sortedJobCodes.length === 0 && (
-          <p className="mt-3 text-[11px] italic text-muted-foreground/50">No roles</p>
-        )}
-      </div>
-
-      {modal === 'edit' && <FamilyModal family={family} onClose={() => setModal(null)} onSaved={() => { setModal(null); onRefresh(); }} />}
-      {modal === 'delete' && <DeleteConfirm label={family.name} onConfirm={() => del.mutate()} onCancel={() => setModal(null)} loading={del.isPending} />}
-      {modal === 'add-role' && <JobCodeModal jobFamilyId={family.id} bands={bands} onClose={() => setModal(null)} onSaved={() => { setModal(null); onRefresh(); }} />}
-    </>
-  );
-}
-
-// ─── Area Tree Section ────────────────────────────────────────────────────────
-
-function AreaTreeSection({ area, accentColor, colorClass, search, bands, editMode, canEdit, onRefresh }: {
+function AreaSection({ area, accentColor, colorClass, search, bands, editMode, canEdit, onRefresh }: {
   area: any; accentColor: string; colorClass: string; search: string; bands: any[];
   editMode: boolean; canEdit: boolean; onRefresh: () => void;
 }) {
-  const [open, setOpen] = useState(true);
-  const [modal, setModal] = useState<'edit' | 'delete' | 'add-family' | null>(null);
   const families: any[] = area.jobFamilies ?? [];
+  const [open, setOpen] = useState(true);
+  const [selectedFamilyId, setSelectedFamilyId] = useState<string | null>(null);
+  const [modal, setModal] = useState<'edit' | 'delete' | 'add-family' | null>(null);
+  const [familyAction, setFamilyAction] = useState<{ type: 'edit' | 'delete'; family: any } | null>(null);
+  const [addRoleForFamily, setAddRoleForFamily] = useState<string | null>(null);
 
-  const filtered = search
+  const totalRoles = families.reduce((s: number, f: any) => s + (f.jobCodes?.length ?? 0), 0);
+  const totalVacant = families.reduce((s: number, f: any) =>
+    s + (f.jobCodes ?? []).filter((jc: any) =>
+      extractEmployeeNames(jc.title).length === 0 && (jc.employees ?? []).length === 0
+    ).length, 0);
+
+  const visibleFamilies = search
     ? families.filter(f =>
         f.name.toLowerCase().includes(search.toLowerCase()) ||
         (f.jobCodes ?? []).some((jc: any) =>
@@ -1198,19 +1044,37 @@ function AreaTreeSection({ area, accentColor, colorClass, search, bands, editMod
       )
     : families;
 
-  const totalRoles = families.reduce((sum: number, f: any) => sum + (f.jobCodes?.length ?? 0), 0);
+  const effectiveId = (selectedFamilyId && visibleFamilies.find(f => f.id === selectedFamilyId))
+    ? selectedFamilyId
+    : visibleFamilies[0]?.id ?? null;
+
+  const selectedFamily = families.find(f => f.id === effectiveId) ?? null;
+
+  const sortedRoles = selectedFamily
+    ? [...(selectedFamily.jobCodes ?? [])].sort((a: any, b: any) => {
+        const aL = a.band?.level ?? 9999, bL = b.band?.level ?? 9999;
+        return aL !== bL ? aL - bL : a.code.localeCompare(b.code);
+      }).filter((jc: any) =>
+        !search ||
+        jc.title.toLowerCase().includes(search.toLowerCase()) ||
+        jc.code.toLowerCase().includes(search.toLowerCase())
+      )
+    : [];
 
   const del = useMutation({
     mutationFn: () => jobArchitectureService.deleteJobArea(area.id),
     onSuccess: () => { toast.success('Job area deleted'); onRefresh(); setModal(null); },
     onError: () => toast.error('Failed to delete job area'),
   });
+  const delFamily = useMutation({
+    mutationFn: (id: string) => jobArchitectureService.deleteJobFamily(id),
+    onSuccess: () => { toast.success('Family deleted'); onRefresh(); setFamilyAction(null); },
+    onError: () => toast.error('Failed to delete family'),
+  });
 
   return (
     <>
       <div className={cn('rounded-xl border bg-card overflow-hidden shadow-sm', editMode ? 'border-primary/30' : 'border-border')}>
-
-        {/* Coloured left accent bar + header */}
         <div className="flex">
           <div className="w-1 flex-shrink-0" style={{ backgroundColor: accentColor }} />
           <div className="flex-1 min-w-0 flex items-center gap-3 px-4 py-4">
@@ -1223,8 +1087,8 @@ function AreaTreeSection({ area, accentColor, colorClass, search, bands, editMod
                 {area.description && <p className="text-xs text-muted-foreground mt-0.5 truncate">{area.description}</p>}
               </div>
               <div className="text-right flex-shrink-0 mr-2 space-y-0.5">
-                <p className="text-xs text-muted-foreground">{families.length} {families.length === 1 ? 'family' : 'families'}</p>
-                <p className="text-xs text-muted-foreground">{totalRoles} roles</p>
+                <p className="text-xs text-muted-foreground">{families.length} {families.length === 1 ? 'family' : 'families'} · {totalRoles} roles</p>
+                {totalVacant > 0 && <p className="text-xs text-amber-600/80">{totalVacant} vacant</p>}
               </div>
             </button>
             {editMode && (
@@ -1232,12 +1096,8 @@ function AreaTreeSection({ area, accentColor, colorClass, search, bands, editMod
                 <button onClick={() => { setModal('add-family'); setOpen(true); }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition-colors">
                   <Plus className="w-3.5 h-3.5" /> Family
                 </button>
-                <button onClick={() => setModal('edit')} className="p-1.5 rounded-lg bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors" title="Edit area">
-                  <Pencil className="w-3.5 h-3.5" />
-                </button>
-                <button onClick={() => setModal('delete')} className="p-1.5 rounded-lg bg-muted hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors" title="Delete area">
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                <button onClick={() => setModal('edit')} className="p-1.5 rounded-lg bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"><Pencil className="w-3.5 h-3.5" /></button>
+                <button onClick={() => setModal('delete')} className="p-1.5 rounded-lg bg-muted hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"><Trash2 className="w-3.5 h-3.5" /></button>
               </div>
             )}
             <button onClick={() => setOpen(o => !o)} className="flex-shrink-0 pl-1">
@@ -1246,37 +1106,87 @@ function AreaTreeSection({ area, accentColor, colorClass, search, bands, editMod
           </div>
         </div>
 
-        {/* Org-chart tree body — horizontally scrollable */}
         {open && (
-          <div className="border-t border-border/40 bg-muted/5 overflow-x-auto">
-            <div className="p-6 flex flex-col items-center min-w-fit">
-              {filtered.length === 0 && search ? (
-                <p className="text-xs text-muted-foreground py-4">No matches found</p>
-              ) : filtered.length === 0 ? (
-                <p className="text-xs italic text-muted-foreground/50 py-4">No families defined</p>
-              ) : (
-                <>
-                  {/* Vertical stem from area header down to family connector */}
-                  <div className="w-[2px] h-8 rounded-full bg-border/55" />
-                  {/* Family columns side-by-side */}
-                  <div className="flex items-start">
-                    {filtered.map((family: any, idx: number) => (
-                      <FamilyColumn
-                        key={family.id}
-                        family={family}
-                        bands={bands}
-                        index={idx}
-                        total={filtered.length}
-                        accentColor={accentColor}
-                        editMode={editMode}
-                        canEdit={canEdit}
-                        onRefresh={onRefresh}
-                      />
-                    ))}
+          <div className="border-t border-border/40 bg-muted/5">
+            {visibleFamilies.length > 0 ? (
+              <>
+                {/* Family tabs row */}
+                <div className="flex items-center gap-2 px-5 py-3 overflow-x-auto border-b border-border/30 bg-background/60 flex-wrap">
+                  {visibleFamilies.map(family => {
+                    const isActive = family.id === effectiveId;
+                    const roleCount = (family.jobCodes ?? []).length;
+                    const vacantCount = (family.jobCodes ?? []).filter((jc: any) =>
+                      extractEmployeeNames(jc.title).length === 0 && (jc.employees ?? []).length === 0
+                    ).length;
+                    return (
+                      <div key={family.id} className="relative group/tab flex-shrink-0">
+                        <button
+                          onClick={() => setSelectedFamilyId(family.id)}
+                          className={cn(
+                            'flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all whitespace-nowrap',
+                            isActive ? 'text-white shadow-sm' : 'bg-card border-border/50 text-muted-foreground hover:text-foreground hover:border-border'
+                          )}
+                          style={isActive ? { backgroundColor: accentColor, borderColor: accentColor } : {}}
+                        >
+                          <Briefcase className="w-3.5 h-3.5 flex-shrink-0 opacity-75" />
+                          <span>{family.name}</span>
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0"
+                                style={isActive ? { backgroundColor: 'rgba(255,255,255,0.25)', color: 'white' } : { backgroundColor: `${accentColor}15`, color: accentColor }}>
+                            {roleCount}
+                          </span>
+                          {vacantCount > 0 && (
+                            <span className={cn('text-[9px] px-1 py-0.5 rounded font-medium flex-shrink-0',
+                              isActive ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400')}>
+                              {vacantCount} vacant
+                            </span>
+                          )}
+                        </button>
+                        {editMode && (
+                          <div className="absolute -top-1 -right-1 hidden group-hover/tab:flex gap-0.5 z-10">
+                            <button onClick={e => { e.stopPropagation(); setFamilyAction({ type: 'edit', family }); }} className="w-5 h-5 rounded bg-primary text-white flex items-center justify-center hover:bg-primary/80 shadow-sm"><Pencil className="w-2.5 h-2.5" /></button>
+                            <button onClick={e => { e.stopPropagation(); setFamilyAction({ type: 'delete', family }); }} className="w-5 h-5 rounded bg-destructive text-white flex items-center justify-center hover:bg-destructive/80 shadow-sm"><Trash2 className="w-2.5 h-2.5" /></button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Role column under selected family */}
+                {selectedFamily && (
+                  <div className="px-5 py-4">
+                    <div className="flex items-center gap-4 px-4 py-2 mb-1 border-b border-border/30">
+                      <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider w-[190px] flex-shrink-0">Band / Code</span>
+                      <div className="flex items-center gap-4 flex-1 min-w-0">
+                        <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider flex-1">Designation / Role</span>
+                        <span className="text-[10px] font-semibold text-muted-foreground/60 uppercase tracking-wider w-[190px] flex-shrink-0">Employees</span>
+                      </div>
+                    </div>
+                    <div className="space-y-0.5">
+                      {sortedRoles.length === 0 ? (
+                        <p className="text-sm italic text-muted-foreground/50 text-center py-8">No roles in this family</p>
+                      ) : (
+                        sortedRoles.map((jc: any) => (
+                          <RoleRow key={jc.id} jc={jc} bands={bands} editMode={editMode} canEdit={canEdit} onRefresh={onRefresh} />
+                        ))
+                      )}
+                    </div>
+                    {editMode && (
+                      <button
+                        onClick={() => setAddRoleForFamily(selectedFamily.id)}
+                        className="mt-3 flex items-center gap-2 px-4 py-2 rounded-lg border border-dashed border-border/50 text-sm text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all w-full justify-center"
+                      >
+                        <Plus className="w-4 h-4" /> Add Role to {selectedFamily.name}
+                      </button>
+                    )}
                   </div>
-                </>
-              )}
-            </div>
+                )}
+              </>
+            ) : search ? (
+              <p className="text-sm text-muted-foreground text-center py-8">No matches found</p>
+            ) : (
+              <p className="text-xs italic text-muted-foreground/50 text-center py-6">No families defined yet</p>
+            )}
           </div>
         )}
       </div>
@@ -1284,6 +1194,9 @@ function AreaTreeSection({ area, accentColor, colorClass, search, bands, editMod
       {modal === 'edit' && <AreaModal area={area} onClose={() => setModal(null)} onSaved={() => { setModal(null); onRefresh(); }} />}
       {modal === 'delete' && <DeleteConfirm label={area.name} onConfirm={() => del.mutate()} onCancel={() => setModal(null)} loading={del.isPending} />}
       {modal === 'add-family' && <FamilyModal jobAreaId={area.id} onClose={() => setModal(null)} onSaved={() => { setModal(null); onRefresh(); }} />}
+      {familyAction?.type === 'edit' && <FamilyModal family={familyAction.family} onClose={() => setFamilyAction(null)} onSaved={() => { setFamilyAction(null); onRefresh(); }} />}
+      {familyAction?.type === 'delete' && <DeleteConfirm label={familyAction.family.name} onConfirm={() => delFamily.mutate(familyAction.family.id)} onCancel={() => setFamilyAction(null)} loading={delFamily.isPending} />}
+      {addRoleForFamily && <JobCodeModal jobFamilyId={addRoleForFamily} bands={bands} onClose={() => setAddRoleForFamily(null)} onSaved={() => { setAddRoleForFamily(null); onRefresh(); }} />}
     </>
   );
 }
@@ -1482,7 +1395,7 @@ export default function JobArchitecturePage() {
           ) : (
             <div className="space-y-4">
               {filteredAreas.map((area: any, idx: number) => (
-                <AreaTreeSection
+                <AreaSection
                   key={area.id}
                   area={area}
                   colorClass={AREA_COLORS[idx % AREA_COLORS.length]}
@@ -1507,7 +1420,7 @@ export default function JobArchitecturePage() {
               <div key={i} className="h-16 rounded-xl border border-border bg-card animate-pulse" />
             ))
           ) : (
-            bands
+            [...bands]
               .sort((a, b) => a.level - b.level)
               .map((band: any) => (
                 <div

@@ -34,13 +34,12 @@ const notFound = (code: string, message: string) => new ServiceError(404, code, 
 export const jobArchitectureService = {
   // ─── Hierarchy ────────────────────────────────────────────────
   getHierarchy: async () => {
-    return prisma.jobArea.findMany({
+    const areas = await prisma.jobArea.findMany({
       include: {
         jobFamilies: {
           orderBy: { name: 'asc' },
           include: {
             jobCodes: {
-              orderBy: [{ band: { level: 'asc' } }, { code: 'asc' }],
               include: {
                 band: true,
                 grade: true,
@@ -55,6 +54,18 @@ export const jobArchitectureService = {
       },
       orderBy: { name: 'asc' },
     });
+
+    // Sort job codes within each family by band.level (matches BAND_ORDER in shared/constants)
+    for (const area of areas) {
+      for (const family of area.jobFamilies) {
+        (family.jobCodes as any[]).sort((a, b) => {
+          const aLevel = a.band?.level ?? 9999;
+          const bLevel = b.band?.level ?? 9999;
+          return aLevel !== bLevel ? aLevel - bLevel : a.code.localeCompare(b.code);
+        });
+      }
+    }
+    return areas;
   },
 
   // ─── JobArea ──────────────────────────────────────────────────

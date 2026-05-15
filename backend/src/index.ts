@@ -31,15 +31,19 @@ async function bootstrap() {
     // Set ADMIN_EMAIL + ADMIN_PASSWORD in Railway Variables to configure.
     try {
       const adminEmail    = process.env.ADMIN_EMAIL    || 'vijuadmin@imocha.io';
-      const adminPassword = process.env.ADMIN_PASSWORD || 'Admin@123';
+      const adminPassword = process.env.ADMIN_PASSWORD;
       const adminName     = process.env.ADMIN_NAME     || 'HR Admin';
-      const existing = await prisma.user.findUnique({ where: { email: adminEmail } });
-      if (!existing) {
-        const hashed = await bcrypt.hash(adminPassword, 12);
-        await prisma.user.create({
-          data: { email: adminEmail, password: hashed, name: adminName, role: 'ADMIN' },
-        });
-        logger.info(`✅ Admin user created: ${adminEmail}`);
+      if (!adminPassword) {
+        logger.warn('⚠️  Admin seed skipped: ADMIN_PASSWORD env var not set');
+      } else {
+        const existing = await prisma.user.findUnique({ where: { email: adminEmail } });
+        if (!existing) {
+          const hashed = await bcrypt.hash(adminPassword, 12);
+          await prisma.user.create({
+            data: { email: adminEmail, password: hashed, name: adminName, role: 'ADMIN' },
+          });
+          logger.info(`✅ Admin user created: ${adminEmail}`);
+        }
       }
     } catch (adminErr: any) {
       logger.warn('⚠️  Admin seed skipped:', adminErr.message);
