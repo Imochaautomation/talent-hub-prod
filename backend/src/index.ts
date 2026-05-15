@@ -36,13 +36,16 @@ async function bootstrap() {
       if (!adminPassword) {
         logger.warn('⚠️  Admin seed skipped: ADMIN_PASSWORD env var not set');
       } else {
+        const hashed = await bcrypt.hash(adminPassword, 12);
         const existing = await prisma.user.findUnique({ where: { email: adminEmail } });
         if (!existing) {
-          const hashed = await bcrypt.hash(adminPassword, 12);
           await prisma.user.create({
             data: { email: adminEmail, password: hashed, name: adminName, role: 'ADMIN' },
           });
           logger.info(`✅ Admin user created: ${adminEmail}`);
+        } else {
+          await prisma.user.update({ where: { email: adminEmail }, data: { password: hashed } });
+          logger.info(`✅ Admin password synced: ${adminEmail}`);
         }
       }
     } catch (adminErr: any) {
