@@ -23,7 +23,6 @@ const BenefitsHubPage = lazy(() => import('./pages/BenefitsHubPage'));
 const PlatformSettingsPage = lazy(() => import('./pages/PlatformSettingsPage'));
 const UserSettingsPage = lazy(() => import('./pages/UserSettingsPage'));
 const AIAssistantPage = lazy(() => import('./pages/AIAssistantPage'));
-const SentMailsPage = lazy(() => import('./pages/SentMailsPage'));
 const DataCenterPage = lazy(() => import('./pages/DataCenterPage'));
 const AcceptInvitePage = lazy(() => import('./pages/AcceptInvitePage'));
 const ApplicationLogsPage = lazy(() => import('./pages/ApplicationLogsPage'));
@@ -74,7 +73,6 @@ function AppRoutes() {
           <Route path="settings/user" element={<UserSettingsPage />} />
           <Route path="benefits-hub" element={<BenefitsHubPage />} />
           <Route path="ai-assistant" element={<AIAssistantPage />} />
-          <Route path="sent-mails" element={<SentMailsPage />} />
           <Route path="data-center" element={<DataCenterPage />} />
           <Route path="app-logs" element={<ApplicationLogsPage />} />
           <Route path="compensation" element={<CompensationHubPage />} />

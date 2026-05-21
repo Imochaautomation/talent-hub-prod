@@ -1,6 +1,12 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError, ZodSchema } from 'zod';
 import { jobArchitectureService, ServiceError } from '../services/jobArchitecture.service';
+import {
+  parseImportFile,
+  previewBulkImport,
+  applyBulkImport,
+  generateImportTemplate,
+} from '../services/jobArchitectureImport.service';
 import { logAction } from '../services/auditLog.service';
 import { emitJobArchitectureRefresh, emitSalaryBandUpdated } from '../lib/socket';
 import {
@@ -218,5 +224,56 @@ export const jobArchitectureController = {
   },
   updateSkill: async (req: Request, res: Response, next: NextFunction) => {
     try { res.json({ data: await jobArchitectureService.updateSkill(req.params.id, req.body) }); } catch (e) { next(e); }
+  },
+
+  // ─── Bulk Import ─────────────────────────────────────────────────
+  downloadImportTemplate: async (_req: Request, res: Response, next: NextFunction) => {
+    try {
+      const buf = await generateImportTemplate();
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', 'attachment; filename="job_architecture_import_template.xlsx"');
+      res.send(buf);
+    } catch (e) { next(e); }
+  },
+
+  previewBulkImport: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: { code: 'NO_FILE', message: 'No file uploaded.' } });
+        return;
+      }
+      const { rows, errors, employeeLinks } = parseImportFile(req.file.buffer, req.file.mimetype);
+      if (rows.length === 0 && errors.length === 0 && employeeLinks.length === 0) {
+        res.status(400).json({ error: { code: 'EMPTY_FILE', message: 'No job architecture data found in the uploaded file. Check that sheets have valid column headers or matrix format.' } });
+        return;
+      }
+      const result = await previewBulkImport(rows, errors, employeeLinks);
+      void logAction({ userId: userId(req), action: 'JOB_ARCH_BULK_IMPORT_PREVIEW', entityType: 'JobCode', entityId: 'bulk', metadata: { parsedCount: result.parsedCount }, ip: req.ip });
+      res.json({ data: result });
+    } catch (e: any) {
+      if (e?.status) return res.status(e.status).json({ error: { code: 'IMPORT_ERROR', message: e.message } });
+      next(e);
+    }
+  },
+
+  applyBulkImport: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { previewToken, mode } = req.body as { previewToken?: string; mode?: string };
+      if (!previewToken) {
+        res.status(400).json({ error: { code: 'MISSING_TOKEN', message: 'previewToken is required.' } });
+        return;
+      }
+      if (mode !== 'add_new' && mode !== 'replace') {
+        res.status(400).json({ error: { code: 'INVALID_MODE', message: 'mode must be "add_new" or "replace".' } });
+        return;
+      }
+      const result = await applyBulkImport(previewToken, mode);
+      void logAction({ userId: userId(req), action: 'JOB_ARCH_BULK_IMPORT_APPLIED', entityType: 'JobCode', entityId: 'bulk', metadata: { mode, ...result }, ip: req.ip });
+      try { emitJobArchitectureRefresh(); } catch { /* non-fatal */ }
+      res.json({ data: result });
+    } catch (e: any) {
+      if (e?.status) return res.status(e.status).json({ error: { code: 'IMPORT_ERROR', message: e.message } });
+      next(e);
+    }
   },
 };

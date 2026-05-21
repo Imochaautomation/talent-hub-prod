@@ -4,8 +4,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Layers, ChevronRight, ChevronDown, Building2,
   Briefcase, Tag, Star, Search, Pencil, Plus,
-  Trash2, X, Check, Loader2, CheckCheck, Users, Lock,
+  Trash2, X, Check, Loader2, CheckCheck, Users, Lock, Upload,
 } from 'lucide-react';
+import * as Popover from '@radix-ui/react-popover';
+import BulkImportJobArchModal from '../components/BulkImportJobArchModal';
 import { toast } from 'sonner';
 import { jobArchitectureService } from '../services/jobArchitecture.service';
 import AddEmployeeModal from '../components/employees/AddEmployeeModal';
@@ -919,23 +921,105 @@ function EmployeeDetailModal({ employeeId, employeeName, onClose }: {
 
 // ─── Employee Tag (inline clickable chip inside a role row) ──────────────────
 
+const AVATAR_COLORS = [
+  'bg-blue-500', 'bg-violet-500', 'bg-emerald-500', 'bg-amber-500',
+  'bg-rose-500', 'bg-cyan-500', 'bg-indigo-500', 'bg-orange-500',
+];
+
+function avatarColor(name: string) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffffffff;
+  return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+}
+
+function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
+  const initials = name.split(' ').filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  const sz = size === 'sm' ? 'w-6 h-6 text-[9px]' : 'w-7 h-7 text-[10px]';
+  return (
+    <span className={cn(sz, 'rounded-full flex items-center justify-center font-bold text-white flex-shrink-0', avatarColor(name))}>
+      {initials}
+    </span>
+  );
+}
+
 function EmployeeTag({ name, employeeId }: { name: string; employeeId: string | null }) {
   const [showDetail, setShowDetail] = useState(false);
-  const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
   return (
     <>
       <button
         onClick={e => { e.stopPropagation(); setShowDetail(true); }}
-        className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-primary/25 bg-primary/6 hover:bg-primary/12 hover:border-primary/45 transition-all text-[10.5px] font-semibold text-foreground/85 max-w-[160px] w-full"
-        style={{ fontFamily: 'Georgia, "Times New Roman", serif' }}
+        className="flex items-center gap-2 w-full px-2 py-1.5 rounded-lg hover:bg-muted/50 transition-colors text-left"
       >
-        <span className="w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-          <span className="text-[8px] font-bold text-primary leading-none">{initials}</span>
-        </span>
-        <span className="truncate">{name}</span>
+        <Avatar name={name} size="sm" />
+        <span className="text-xs font-medium text-foreground truncate">{name}</span>
       </button>
       {showDetail && (
         <EmployeeDetailModal employeeId={employeeId} employeeName={name} onClose={() => setShowDetail(false)} />
+      )}
+    </>
+  );
+}
+
+function EmployeeAvatarStack({ emps }: { emps: { id: string | null; name: string }[] }) {
+  const [open, setOpen] = useState(false);
+  const [detailEmp, setDetailEmp] = useState<{ id: string | null; name: string } | null>(null);
+  const MAX_VISIBLE = 4;
+  const visible = emps.slice(0, MAX_VISIBLE);
+  const overflow = emps.length - MAX_VISIBLE;
+
+  return (
+    <>
+      <Popover.Root open={open} onOpenChange={setOpen}>
+        <Popover.Trigger asChild>
+          <button
+            onClick={e => e.stopPropagation()}
+            className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+            title={`${emps.length} employee${emps.length !== 1 ? 's' : ''}`}
+          >
+            {/* Overlapping avatar stack */}
+            <div className="flex -space-x-2">
+              {visible.map(emp => (
+                <span key={emp.name} className="ring-2 ring-background rounded-full">
+                  <Avatar name={emp.name} size="sm" />
+                </span>
+              ))}
+            </div>
+            {overflow > 0 && (
+              <span className="text-[10px] font-semibold text-muted-foreground bg-muted border border-border rounded-full px-1.5 py-0.5">
+                +{overflow}
+              </span>
+            )}
+            <span className="text-[11px] text-muted-foreground font-medium">
+              {emps.length} {emps.length === 1 ? 'person' : 'people'}
+            </span>
+          </button>
+        </Popover.Trigger>
+        <Popover.Portal>
+          <Popover.Content
+            side="right"
+            align="start"
+            sideOffset={8}
+            onClick={e => e.stopPropagation()}
+            className="z-50 w-56 rounded-xl border border-border bg-background shadow-xl overflow-hidden"
+          >
+            <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                {emps.length} {emps.length === 1 ? 'Employee' : 'Employees'}
+              </span>
+              <Popover.Close className="text-muted-foreground hover:text-foreground transition-colors">
+                <X className="w-3.5 h-3.5" />
+              </Popover.Close>
+            </div>
+            <div className="py-1 max-h-64 overflow-y-auto">
+              {emps.map(emp => (
+                <EmployeeTag key={emp.name} name={emp.name} employeeId={emp.id} />
+              ))}
+            </div>
+          </Popover.Content>
+        </Popover.Portal>
+      </Popover.Root>
+      {detailEmp && (
+        <EmployeeDetailModal employeeId={detailEmp.id} employeeName={detailEmp.name} onClose={() => setDetailEmp(null)} />
       )}
     </>
   );
@@ -947,21 +1031,9 @@ function RoleRow({ jc, bands, editMode, canEdit, onRefresh }: {
   jc: any; bands: any[]; editMode: boolean; canEdit: boolean; onRefresh: () => void;
 }) {
   const [modal, setModal] = useState<'detail' | 'edit' | 'delete' | null>(null);
-  const displayTitle = getCleanTitle(jc.title);
-  const embeddedNames = extractEmployeeNames(jc.title);
+  const displayTitle = jc.title;
   type EmpEntry = { id: string | null; name: string };
-  const dbEmps: EmpEntry[] = (jc.employees ?? []).map((e: any) => ({ id: e.id, name: `${e.firstName} ${e.lastName}` }));
-  const seen = new Set<string>();
-  const allEmps: EmpEntry[] = [];
-  for (const name of embeddedNames) {
-    const key = name.toLowerCase();
-    const dbMatch = dbEmps.find(e => e.name.toLowerCase() === key);
-    allEmps.push(dbMatch ?? { id: null, name });
-    seen.add(key);
-  }
-  for (const e of dbEmps) {
-    if (!seen.has(e.name.toLowerCase())) { seen.add(e.name.toLowerCase()); allEmps.push(e); }
-  }
+  const allEmps: EmpEntry[] = (jc.employees ?? []).map((e: any) => ({ id: e.id, name: `${e.firstName} ${e.lastName}` }));
   const isVacant = allEmps.length === 0;
 
   const del = useMutation({
@@ -983,20 +1055,13 @@ function RoleRow({ jc, bands, editMode, canEdit, onRefresh }: {
         </div>
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <span className="text-sm font-semibold text-foreground flex-1 min-w-0 leading-snug">{displayTitle}</span>
-          <div className="flex flex-col gap-1 w-[190px] flex-shrink-0" onClick={e => e.stopPropagation()}>
+          <div className="flex-shrink-0 w-[220px]" onClick={e => e.stopPropagation()}>
             {isVacant ? (
-              <span className="inline-flex items-center gap-1.5 text-[11px] italic text-muted-foreground/55 px-2.5 py-1 rounded-full border border-dashed border-border/40 bg-muted/15 w-fit">
+              <span className="inline-flex items-center gap-1.5 text-[11px] italic text-muted-foreground/55 px-2.5 py-1 rounded-full border border-dashed border-border/40 bg-muted/15">
                 <span className="w-1.5 h-1.5 rounded-full bg-border/50 flex-shrink-0" />Vacant
               </span>
             ) : (
-              <>
-                {allEmps.slice(0, 3).map(emp => <EmployeeTag key={emp.name} name={emp.name} employeeId={emp.id} />)}
-                {allEmps.length > 3 && (
-                  <span className="text-[10px] font-semibold text-primary/70 px-2 py-0.5 rounded-full bg-primary/8 border border-primary/20 w-fit cursor-default select-none">
-                    +{allEmps.length - 3} more
-                  </span>
-                )}
-              </>
+              <EmployeeAvatarStack emps={allEmps} />
             )}
           </div>
         </div>
@@ -1209,6 +1274,7 @@ export default function JobArchitecturePage() {
   const [editMode, setEditMode] = useState(false);
   const [bandModal, setBandModal] = useState<any>(null);
   const [areaModal, setAreaModal] = useState(false);
+  const [bulkImportOpen, setBulkImportOpen] = useState(false);
 
   const user = useAuthStore(s => s.user);
   const canEdit = user?.role === 'ADMIN' || user?.role === 'HR_MANAGER';
@@ -1282,6 +1348,13 @@ export default function JobArchitecturePage() {
                 Add Area
               </button>
             )}
+            <button
+              onClick={() => setBulkImportOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors"
+            >
+              <Upload className="w-4 h-4" />
+              Bulk Import
+            </button>
             <button
               onClick={() => setEditMode(e => !e)}
               className={cn(
@@ -1483,6 +1556,10 @@ export default function JobArchitecturePage() {
           onSaved={() => { setBandModal(null); refreshBands(); }}
         />
       )}
+      <BulkImportJobArchModal
+        open={bulkImportOpen}
+        onClose={() => { setBulkImportOpen(false); refreshHierarchy(); }}
+      />
     </div>
   );
 }

@@ -1,11 +1,10 @@
 import { useState, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Star, TrendingUp, X, Mail, ChevronUp, ChevronDown, Search, Filter, ArrowUpDown, Sparkles, RefreshCw } from 'lucide-react';
+import { Star, TrendingUp, X, ChevronUp, ChevronDown, Search, Filter, ArrowUpDown, Sparkles, RefreshCw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 import { cn } from '../lib/utils';
-import EmailComposerModal, { type EmailComposerEmployee } from '../components/EmailComposerModal';
 
 const performanceApi = {
   getMatrix: async () => { const r = await api.get('/performance/matrix'); return r.data; },
@@ -52,7 +51,6 @@ export default function PerformancePage() {
   const [activeTab, setActiveTab] = useState<'matrix' | 'promotion' | 'gaps'>('matrix');
   const [showAI, setShowAI] = useState(false);
   const queryClient = useQueryClient();
-  const [emailTarget, setEmailTarget] = useState<EmailComposerEmployee | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [searchName, setSearchName] = useState('');
   const [filterDepartment, setFilterDepartment] = useState('');
@@ -489,15 +487,7 @@ export default function PerformancePage() {
                             {e.quadrant}
                           </span>
                         </td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => setEmailTarget({ name: e.name, department: e.department, band: e.band, rating: e.rating, ctc: e.annualCtc })}
-                            title="Compose email"
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                          >
-                            <Mail className="w-3.5 h-3.5" />
-                          </button>
-                        </td>
+                        <td className="px-4 py-3"></td>
                       </tr>
                     ))}
                   </tbody>
@@ -582,15 +572,7 @@ export default function PerformancePage() {
                       </td>
                       <td className="px-4 py-3 text-muted-foreground cursor-pointer" onClick={() => navigate(`/employees/${e.id}`)}>{e.tenureMonths}mo</td>
                       <td className="px-4 py-3 font-medium text-foreground cursor-pointer" onClick={() => navigate(`/employees/${e.id}`)}>₹{(e.annualFixed / 100000).toFixed(1)}L</td>
-                      <td className="px-4 py-3">
-                        <button
-                          onClick={() => setEmailTarget({ name: e.name, department: e.department, band: e.band, rating: e.rating, ctc: e.annualFixed })}
-                          title="Compose email"
-                          className="p-1.5 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                        >
-                          <Mail className="w-3.5 h-3.5" />
-                        </button>
-                      </td>
+                      <td className="px-4 py-3"></td>
                     </tr>
                   ))}
                 </tbody>
@@ -605,11 +587,6 @@ export default function PerformancePage() {
         </div>
       )}
 
-      <EmailComposerModal
-        open={emailTarget !== null}
-        onClose={() => setEmailTarget(null)}
-        employee={emailTarget ?? undefined}
-      />
 
       {/* Pay Alignment Gaps */}
       {activeTab === 'gaps' && (
@@ -645,13 +622,6 @@ export default function PerformancePage() {
                             <span className="text-xs font-medium text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
                               Retention Risk
                             </span>
-                            <button
-                              onClick={ev => { ev.stopPropagation(); setEmailTarget({ name: e.name, department: e.department, band: e.band, rating: e.rating, ctc: e.annualFixed }); }}
-                              title="Compose email"
-                              className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-200 dark:hover:bg-blue-800/40 transition-colors"
-                            >
-                              <Mail className="w-3.5 h-3.5" />
-                            </button>
                           </div>
                         </div>
                         <div className="mt-2 flex gap-4 text-xs text-muted-foreground">
@@ -690,13 +660,6 @@ export default function PerformancePage() {
                             <span className="text-xs font-medium text-red-700 bg-red-100 px-2 py-0.5 rounded-full">
                               Action Needed
                             </span>
-                            <button
-                              onClick={ev => { ev.stopPropagation(); setEmailTarget({ name: e.name, department: e.department, band: e.band, rating: e.rating, ctc: e.annualFixed }); }}
-                              title="Compose email"
-                              className="p-1.5 rounded-lg text-red-600 hover:bg-red-200 dark:hover:bg-red-800/40 transition-colors"
-                            >
-                              <Mail className="w-3.5 h-3.5" />
-                            </button>
                           </div>
                         </div>
                         <div className="mt-2 flex gap-4 text-xs text-muted-foreground">

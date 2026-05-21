@@ -8,7 +8,6 @@ import { Router, Request, Response } from 'express';
 import { authenticate } from '../middleware/authenticate';
 import { requireRole } from '../middleware/requireRole';
 import { usersService } from '../services/users.service';
-import { emailService } from '../services/email.service';
 import { logAction } from '../services/auditLog.service';
 import logger from '../lib/logger';
 import type { UserRole } from '../types/index';
@@ -45,20 +44,6 @@ router.post('/create', authenticate, requireRole('ADMIN'), async (req: Request, 
   }
 });
 
-/** POST /api/users/send-credentials — email login details to a newly created user */
-router.post('/send-credentials', authenticate, requireRole('ADMIN'), async (req: Request, res: Response) => {
-  try {
-    const { name, email, password } = req.body;
-    if (!name || !email || !password) {
-      return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'name, email, and password are required' } });
-    }
-    const platformUrl = req.headers.origin || process.env.APP_URL || 'http://localhost:5179';
-    await emailService.sendCredentialsEmail(email, name, email, password, platformUrl);
-    res.json({ data: { sent: true } });
-  } catch (err: any) {
-    res.status(500).json({ error: { code: 'INTERNAL', message: err.message } });
-  }
-});
 
 /** PATCH /api/users/:id/role — change a user's role */
 router.patch('/:id/role', authenticate, requireRole('ADMIN'), async (req: Request, res: Response) => {
@@ -130,11 +115,6 @@ router.post('/:id/reset-password', authenticate, requireRole('ADMIN'), async (re
     await logAction({ userId: req.user!.userId, action: 'USER_RESET_PASSWORD', entityType: 'User', entityId: req.params.id, ip: req.ip });
     logger.info(`[Reset] Generated reset link for ${email}`);
 
-    // Send reset email (non-blocking)
-    emailService.sendPasswordResetEmail(email, resetUrl).catch(err =>
-      logger.warn(`[Reset] Email send failed for ${email}: ${err.message}`)
-    );
-
     res.json({ data: { resetUrl } });
   } catch (err: any) {
     res.status(err.statusCode || 500).json({ error: { code: 'INTERNAL', message: err.message } });
@@ -176,11 +156,6 @@ router.post('/invite', authenticate, requireRole('ADMIN'), async (req: Request, 
 
     await logAction({ userId: req.user!.userId, action: 'USER_INVITED', entityType: 'UserInvite', entityId: invite.id, metadata: { email }, ip: req.ip });
     logger.info(`[Invite] Created invite for ${email}`);
-
-    // Send invite email (non-blocking — don't fail the request if SMTP is unconfigured)
-    emailService.sendInviteEmail(email, inviteUrl).catch(err =>
-      logger.warn(`[Invite] Email send failed for ${email}: ${err.message}`)
-    );
 
     res.json({
       data: { id: invite.id, email: invite.email, expiresAt: invite.expiresAt, inviteUrl },

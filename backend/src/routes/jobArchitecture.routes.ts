@@ -1,7 +1,10 @@
 import { Router } from 'express';
+import multer from 'multer';
 import { jobArchitectureController as ctrl } from '../controllers/jobArchitecture.controller';
 import { authenticate } from '../middleware/authenticate';
 import { requireRole } from '../middleware/requireRole';
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const router = Router();
 router.use(authenticate);
@@ -38,5 +41,10 @@ router.delete('/job-codes/:id', requireRole('ADMIN', 'HR_MANAGER'), ctrl.deleteJ
 router.get('/skills', ctrl.getSkills);
 router.post('/skills', requireRole('ADMIN', 'HR_MANAGER'), ctrl.createSkill);
 router.put('/skills/:id', requireRole('ADMIN', 'HR_MANAGER'), ctrl.updateSkill);
+
+// ─── Bulk Import ──────────────────────────────────────────────────────────────
+router.get('/job-architecture/bulk-import/template', requireRole('ADMIN', 'HR_MANAGER'), ctrl.downloadImportTemplate);
+router.post('/job-architecture/bulk-import/preview', requireRole('ADMIN', 'HR_MANAGER'), upload.single('file'), ctrl.previewBulkImport);
+router.post('/job-architecture/bulk-import/apply', requireRole('ADMIN', 'HR_MANAGER'), ctrl.applyBulkImport);
 
 export default router;

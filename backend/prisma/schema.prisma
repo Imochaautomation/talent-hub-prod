@@ -202,7 +202,7 @@ model Employee {
   firstName          String
   lastName           String
   nickName           String?
-  email              String         @unique
+  email              String?        @unique
   department         String
   designation        String
   reportingManagerId String?

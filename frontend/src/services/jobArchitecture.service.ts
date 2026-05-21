@@ -122,4 +122,34 @@ export const jobArchitectureService = {
     const res = await api.get<{ data: any[] }>('/skills');
     return res.data;
   },
+
+  // ── Bulk Import ──────────────────────────────────────────────────────
+  downloadImportTemplate: () => {
+    const a = document.createElement('a');
+    a.href = '/api/job-architecture/bulk-import/template';
+    a.download = 'job_architecture_import_template.xlsx';
+    a.click();
+  },
+
+  previewBulkImport: async (file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await api.post<{ data: unknown }>('/job-architecture/bulk-import/preview', form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return (res.data as any).data as {
+      parsedCount: number;
+      toCreate: { type: string; name: string; details?: Record<string, unknown> }[];
+      toUpdate: { type: string; name: string; existing: Record<string, unknown>; incoming: Record<string, unknown> }[];
+      unchanged: number;
+      errors: { row: number; sheet: string; message: string }[];
+      employeeLinksCount: number;
+      previewToken: string;
+    };
+  },
+
+  applyBulkImport: async (previewToken: string, mode: 'add_new' | 'replace') => {
+    const res = await api.post<{ data: unknown }>('/job-architecture/bulk-import/apply', { previewToken, mode }, { timeout: 120000 });
+    return (res.data as any).data as { created: number; updated: number; skipped: number; employeesLinked: number; errors: { row: number; sheet: string; message: string }[] };
+  },
 };
