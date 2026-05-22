@@ -1367,17 +1367,9 @@ function AreaSection({ area, accentColor, colorClass, search, bands, editMode, c
                   })}
                 </div>
 
-                {/* Sub-family tabs row — only shown when selected family has sub-families */}
-                {selectedFamily && hasSubFamilies && (
-                  <div className="flex items-center gap-2 px-6 py-2 overflow-x-auto border-b border-border/20 bg-muted/10 flex-wrap">
-                    {editMode && (
-                      <button
-                        onClick={() => setAddSubFamilyForFamily(selectedFamily.id)}
-                        className="flex items-center gap-1 px-2.5 py-1 rounded-md border border-dashed border-border/50 text-[11px] text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all flex-shrink-0"
-                      >
-                        <Plus className="w-3 h-3" /> Sub-Family
-                      </button>
-                    )}
+                {/* Sub-family tabs row — always shown for selected family (add button even when empty) */}
+                {selectedFamily && (hasSubFamilies || editMode) && (
+                  <div className="flex items-center gap-2 px-5 py-3 overflow-x-auto border-b border-border/40 bg-muted/10 flex-wrap">
                     {subFamilies.map((sub: any) => {
                       const isActive = sub.id === effectiveSubId;
                       const roleCount = (sub.jobCodes ?? []).length;
@@ -1386,39 +1378,37 @@ function AreaSection({ area, accentColor, colorClass, search, bands, editMode, c
                           <button
                             onClick={() => setSelectedSubFamilyId(sub.id)}
                             className={cn(
-                              'flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all whitespace-nowrap',
+                              'flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all whitespace-nowrap',
                               isActive
-                                ? 'bg-muted text-foreground border-border shadow-sm'
-                                : 'bg-background border-border/40 text-muted-foreground hover:text-foreground hover:border-border/70'
+                                ? 'text-white shadow-sm'
+                                : 'bg-card border-border/50 text-muted-foreground hover:text-foreground hover:border-border'
                             )}
+                            style={isActive ? { backgroundColor: accentColor, borderColor: accentColor, opacity: 0.85 } : {}}
                           >
+                            <Tag className="w-3 h-3 flex-shrink-0 opacity-75" />
                             <span>{sub.name}</span>
-                            <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0',
-                              isActive ? 'bg-foreground/10 text-foreground' : 'bg-muted text-muted-foreground')}>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0"
+                                  style={isActive ? { backgroundColor: 'rgba(255,255,255,0.25)', color: 'white' } : { backgroundColor: `${accentColor}15`, color: accentColor }}>
                               {roleCount}
                             </span>
                           </button>
                           {editMode && (
                             <div className="absolute -top-1 -right-1 hidden group-hover/subtab:flex gap-0.5 z-10">
-                              <button onClick={e => { e.stopPropagation(); setSubFamilyAction({ type: 'edit', subFamily: sub }); }} className="w-4 h-4 rounded bg-primary text-white flex items-center justify-center hover:bg-primary/80 shadow-sm"><Pencil className="w-2 h-2" /></button>
-                              <button onClick={e => { e.stopPropagation(); setSubFamilyAction({ type: 'delete', subFamily: sub }); }} className="w-4 h-4 rounded bg-destructive text-white flex items-center justify-center hover:bg-destructive/80 shadow-sm"><Trash2 className="w-2 h-2" /></button>
+                              <button onClick={e => { e.stopPropagation(); setSubFamilyAction({ type: 'edit', subFamily: sub }); }} className="w-5 h-5 rounded bg-primary text-white flex items-center justify-center hover:bg-primary/80 shadow-sm"><Pencil className="w-2.5 h-2.5" /></button>
+                              <button onClick={e => { e.stopPropagation(); setSubFamilyAction({ type: 'delete', subFamily: sub }); }} className="w-5 h-5 rounded bg-destructive text-white flex items-center justify-center hover:bg-destructive/80 shadow-sm"><Trash2 className="w-2.5 h-2.5" /></button>
                             </div>
                           )}
                         </div>
                       );
                     })}
-                  </div>
-                )}
-
-                {/* Add sub-family button when family has no sub-families yet */}
-                {selectedFamily && !hasSubFamilies && editMode && (
-                  <div className="flex items-center gap-2 px-6 py-2 border-b border-border/20 bg-muted/5">
-                    <button
-                      onClick={() => setAddSubFamilyForFamily(selectedFamily.id)}
-                      className="flex items-center gap-1.5 px-3 py-1 rounded-md border border-dashed border-border/40 text-[11px] text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all"
-                    >
-                      <Plus className="w-3 h-3" /> Add Sub-Family to {selectedFamily.name}
-                    </button>
+                    {editMode && (
+                      <button
+                        onClick={() => setAddSubFamilyForFamily(selectedFamily.id)}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-dashed border-border/50 text-xs text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all flex-shrink-0"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> Add Sub-Family
+                      </button>
+                    )}
                   </div>
                 )}
 
@@ -1533,7 +1523,13 @@ export default function JobArchitecturePage() {
 
   const totalFamilies = areas.reduce((s, a) => s + (a.jobFamilies?.length ?? 0), 0);
   const totalRoles = areas.reduce((s, a) =>
-    s + (a.jobFamilies ?? []).reduce((fs: number, f: any) => fs + (f.jobCodes?.length ?? 0), 0), 0);
+    s + (a.jobFamilies ?? []).reduce((fs: number, f: any) => {
+      const direct = f.jobCodes?.length ?? 0;
+      const subRoles = (f.jobSubFamilies ?? []).reduce(
+        (ss: number, sub: any) => ss + (sub.jobCodes?.length ?? 0), 0
+      );
+      return fs + direct + subRoles;
+    }, 0), 0);
 
   const filteredAreas = search
     ? areas.filter(a =>
