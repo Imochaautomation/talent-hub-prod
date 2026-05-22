@@ -80,12 +80,13 @@ export const jobArchitectureService = {
     const res = await api.get<{ data: any[] }>(`/job-codes?${params}`);
     return res.data;
   },
-  createJobCode: async (data: { code: string; title: string; jobFamilyId: string; bandId: string; gradeId?: string }) => {
+  createJobCode: async (data: { code: string; title: string; jobFamilyId: string; bandId: string; gradeId?: string; jobSubFamilyId?: string }) => {
     const res = await api.post<{ data: any }>('/job-codes', data);
     return res.data;
   },
   updateJobCode: async (id: string, data: {
     code?: string; title?: string; bandId?: string; gradeId?: string | null;
+    jobSubFamilyId?: string | null;
     jobFunction?: string; reportsTo?: string; roleSummary?: string;
     roleResponsibilities?: string; managerResponsibility?: string;
     educationExperience?: string; skillsRequired?: string;
@@ -95,6 +96,23 @@ export const jobArchitectureService = {
   },
   deleteJobCode: async (id: string) => {
     await api.delete(`/job-codes/${id}`);
+  },
+
+  // ── Job Sub-Families ────────────────────────────────────────────────
+  getJobSubFamilies: async (jobFamilyId?: string) => {
+    const res = await api.get<{ data: any[] }>(`/job-sub-families${jobFamilyId ? `?jobFamilyId=${jobFamilyId}` : ''}`);
+    return res.data;
+  },
+  createJobSubFamily: async (data: { name: string; jobFamilyId: string }) => {
+    const res = await api.post<{ data: any }>('/job-sub-families', data);
+    return res.data;
+  },
+  updateJobSubFamily: async (id: string, data: { name: string }) => {
+    const res = await api.put<{ data: any }>(`/job-sub-families/${id}`, data);
+    return res.data;
+  },
+  deleteJobSubFamily: async (id: string) => {
+    await api.delete(`/job-sub-families/${id}`);
   },
 
   // ── Employee detail fetch ────────────────────────────────────────────

@@ -95,16 +95,30 @@ model JobArea {
 }
 
 model JobFamily {
-  id        String    @id @default(uuid())
-  name      String
-  jobAreaId String
-  jobArea   JobArea   @relation(fields: [jobAreaId], references: [id], onDelete: Cascade)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  jobCodes  JobCode[]
+  id             String         @id @default(uuid())
+  name           String
+  jobAreaId      String
+  jobArea        JobArea        @relation(fields: [jobAreaId], references: [id], onDelete: Cascade)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  jobCodes       JobCode[]
+  jobSubFamilies JobSubFamily[]
 
   @@unique([name, jobAreaId])
   @@map("job_families")
+}
+
+model JobSubFamily {
+  id          String    @id @default(uuid())
+  name        String
+  jobFamilyId String
+  jobFamily   JobFamily @relation(fields: [jobFamilyId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  jobCodes    JobCode[]
+
+  @@unique([name, jobFamilyId])
+  @@map("job_sub_families")
 }
 
 model Band {
@@ -136,11 +150,13 @@ model Grade {
 }
 
 model JobCode {
-  id                    String            @id @default(uuid())
+  id                    String        @id @default(uuid())
   code                  String            @unique
   title                 String
   jobFamilyId           String
   jobFamily             JobFamily         @relation(fields: [jobFamilyId], references: [id], onDelete: Cascade)
+  jobSubFamilyId        String?
+  jobSubFamily          JobSubFamily?     @relation(fields: [jobSubFamilyId], references: [id])
   bandId                String
   band                  Band              @relation(fields: [bandId], references: [id])
   gradeId               String?

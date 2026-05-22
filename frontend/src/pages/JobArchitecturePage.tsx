@@ -313,6 +313,45 @@ function FamilyModal({ family, jobAreaId, onClose, onSaved }: {
   );
 }
 
+// ─── Sub-Family Modal ─────────────────────────────────────────────────────────
+
+function SubFamilyModal({ subFamily, jobFamilyId, onClose, onSaved }: {
+  subFamily?: any; jobFamilyId?: string; onClose: () => void; onSaved: () => void;
+}) {
+  const [name, setName] = useState(subFamily?.name ?? '');
+
+  const create = useMutation({
+    mutationFn: () => jobArchitectureService.createJobSubFamily({ name: name.trim(), jobFamilyId: jobFamilyId! }),
+    onSuccess: () => { toast.success('Sub-family created'); onSaved(); },
+    onError: () => toast.error('Failed to create sub-family'),
+  });
+
+  const update = useMutation({
+    mutationFn: () => jobArchitectureService.updateJobSubFamily(subFamily.id, { name: name.trim() }),
+    onSuccess: () => { toast.success('Sub-family updated'); onSaved(); },
+    onError: () => toast.error('Failed to update sub-family'),
+  });
+
+  const loading = create.isPending || update.isPending;
+
+  return (
+    <Modal title={subFamily ? 'Edit Sub-Family' : 'Add Sub-Family'} onClose={onClose}>
+      <Field label="Sub-Family Name">
+        <Input value={name} onChange={setName} placeholder="e.g. Quality Assurance" />
+      </Field>
+      <div className="flex gap-2 justify-end pt-1">
+        <CancelBtn onClick={onClose} />
+        <SaveBtn
+          loading={loading}
+          disabled={!name.trim()}
+          onClick={() => subFamily ? update.mutate() : create.mutate()}
+          label={subFamily ? 'Save Changes' : 'Create Sub-Family'}
+        />
+      </div>
+    </Modal>
+  );
+}
+
 // ─── Job Code Modal ───────────────────────────────────────────────────────────
 
 function JobCodeModal({ jobCode, jobFamilyId, bands, onClose, onSaved }: {
@@ -1080,7 +1119,63 @@ function RoleRow({ jc, bands, editMode, canEdit, onRefresh }: {
   );
 }
 
-// ─── Area Section (family tabs + role column layout) ─────────────────────────
+// ─── Add Role Modal (sub-family aware) ───────────────────────────────────────
+
+function AddRoleModal({ familyId, subFamilyId, bands, onClose, onSaved }: {
+  familyId: string; subFamilyId: string | null; bands: any[];
+  onClose: () => void; onSaved: () => void;
+}) {
+  const [code, setCode] = useState('');
+  const [title, setTitle] = useState('');
+  const [bandId, setBandId] = useState(bands[0]?.id ?? '');
+
+  const sortedBands = [...bands].sort((a, b) => a.level - b.level);
+
+  const create = useMutation({
+    mutationFn: () => jobArchitectureService.createJobCode({
+      code: code.trim().toUpperCase(),
+      title: title.trim(),
+      jobFamilyId: familyId,
+      bandId,
+      ...(subFamilyId ? { jobSubFamilyId: subFamilyId } : {}),
+    } as any),
+    onSuccess: () => { toast.success('Role created'); onSaved(); },
+    onError: (e: any) => toast.error(e?.response?.data?.error?.message ?? 'Failed to create role'),
+  });
+
+  return (
+    <Modal title="Add Role" onClose={onClose}>
+      <Field label="Job Code">
+        <Input value={code} onChange={setCode} placeholder="e.g. SWE-001" />
+      </Field>
+      <Field label="Title">
+        <Input value={title} onChange={setTitle} placeholder="e.g. Software Engineer" />
+      </Field>
+      <Field label="Band">
+        <select
+          value={bandId}
+          onChange={e => setBandId(e.target.value)}
+          className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+        >
+          {sortedBands.map(b => (
+            <option key={b.id} value={b.id}>{b.code} — {b.label}</option>
+          ))}
+        </select>
+      </Field>
+      <div className="flex gap-2 justify-end pt-1">
+        <CancelBtn onClick={onClose} />
+        <SaveBtn
+          loading={create.isPending}
+          disabled={!code.trim() || !title.trim() || !bandId}
+          onClick={() => create.mutate()}
+          label="Create Role"
+        />
+      </div>
+    </Modal>
+  );
+}
+
+// ─── Area Section (family tabs + sub-family tabs + role column layout) ────────
 
 function AreaSection({ area, accentColor, colorClass, search, bands, editMode, canEdit, onRefresh }: {
   area: any; accentColor: string; colorClass: string; search: string; bands: any[];
@@ -1089,42 +1184,94 @@ function AreaSection({ area, accentColor, colorClass, search, bands, editMode, c
   const families: any[] = area.jobFamilies ?? [];
   const [open, setOpen] = useState(true);
   const [selectedFamilyId, setSelectedFamilyId] = useState<string | null>(null);
+  const [selectedSubFamilyId, setSelectedSubFamilyId] = useState<string | null>(null);
   const [modal, setModal] = useState<'edit' | 'delete' | 'add-family' | null>(null);
   const [familyAction, setFamilyAction] = useState<{ type: 'edit' | 'delete'; family: any } | null>(null);
-  const [addRoleForFamily, setAddRoleForFamily] = useState<string | null>(null);
+  const [subFamilyAction, setSubFamilyAction] = useState<{ type: 'edit' | 'delete'; subFamily: any } | null>(null);
+  const [addSubFamilyForFamily, setAddSubFamilyForFamily] = useState<string | null>(null);
+  const [addRoleForSubFamily, setAddRoleForSubFamily] = useState<{ familyId: string; subFamilyId: string | null } | null>(null);
 
-  const totalRoles = families.reduce((s: number, f: any) => s + (f.jobCodes?.length ?? 0), 0);
-  const totalVacant = families.reduce((s: number, f: any) =>
-    s + (f.jobCodes ?? []).filter((jc: any) =>
-      extractEmployeeNames(jc.title).length === 0 && (jc.employees ?? []).length === 0
-    ).length, 0);
+  // Count roles including sub-family roles
+  const countFamilyRoles = (f: any): number => {
+    const directRoles = (f.jobCodes ?? []).length;
+    const subRoles = (f.jobSubFamilies ?? []).reduce((s: number, sub: any) => s + (sub.jobCodes ?? []).length, 0);
+    return directRoles + subRoles;
+  };
+
+  const countFamilyVacant = (f: any): number => {
+    const isVacant = (jc: any) => extractEmployeeNames(jc.title).length === 0 && (jc.employees ?? []).length === 0;
+    const directVacant = (f.jobCodes ?? []).filter(isVacant).length;
+    const subVacant = (f.jobSubFamilies ?? []).reduce((s: number, sub: any) =>
+      s + (sub.jobCodes ?? []).filter(isVacant).length, 0);
+    return directVacant + subVacant;
+  };
+
+  const totalRoles = families.reduce((s: number, f: any) => s + countFamilyRoles(f), 0);
+  const totalVacant = families.reduce((s: number, f: any) => s + countFamilyVacant(f), 0);
 
   const visibleFamilies = search
-    ? families.filter(f =>
-        f.name.toLowerCase().includes(search.toLowerCase()) ||
-        (f.jobCodes ?? []).some((jc: any) =>
-          jc.title.toLowerCase().includes(search.toLowerCase()) ||
-          jc.code.toLowerCase().includes(search.toLowerCase())
-        )
-      )
+    ? families.filter(f => {
+        const directMatch = f.name.toLowerCase().includes(search.toLowerCase()) ||
+          (f.jobCodes ?? []).some((jc: any) =>
+            jc.title.toLowerCase().includes(search.toLowerCase()) ||
+            jc.code.toLowerCase().includes(search.toLowerCase())
+          );
+        const subMatch = (f.jobSubFamilies ?? []).some((sub: any) =>
+          sub.name.toLowerCase().includes(search.toLowerCase()) ||
+          (sub.jobCodes ?? []).some((jc: any) =>
+            jc.title.toLowerCase().includes(search.toLowerCase()) ||
+            jc.code.toLowerCase().includes(search.toLowerCase())
+          )
+        );
+        return directMatch || subMatch;
+      })
     : families;
 
-  const effectiveId = (selectedFamilyId && visibleFamilies.find(f => f.id === selectedFamilyId))
+  const effectiveId = (selectedFamilyId && visibleFamilies.find((f: any) => f.id === selectedFamilyId))
     ? selectedFamilyId
     : visibleFamilies[0]?.id ?? null;
 
-  const selectedFamily = families.find(f => f.id === effectiveId) ?? null;
+  const selectedFamily = families.find((f: any) => f.id === effectiveId) ?? null;
 
-  const sortedRoles = selectedFamily
-    ? [...(selectedFamily.jobCodes ?? [])].sort((a: any, b: any) => {
+  // Sub-families for the selected family
+  const subFamilies: any[] = selectedFamily?.jobSubFamilies ?? [];
+  const hasSubFamilies = subFamilies.length > 0;
+
+  // Effective sub-family id: reset when family changes
+  const effectiveSubId = hasSubFamilies
+    ? ((selectedSubFamilyId && subFamilies.find((s: any) => s.id === selectedSubFamilyId))
+        ? selectedSubFamilyId
+        : subFamilies[0]?.id ?? null)
+    : null;
+
+  const selectedSubFamily = hasSubFamilies
+    ? (subFamilies.find((s: any) => s.id === effectiveSubId) ?? null)
+    : null;
+
+  // Determine which roles to show
+  const getRolesToShow = (): any[] => {
+    if (!selectedFamily) return [];
+    let roles: any[];
+    if (hasSubFamilies && selectedSubFamily) {
+      roles = [...(selectedSubFamily.jobCodes ?? [])];
+    } else if (!hasSubFamilies) {
+      roles = [...(selectedFamily.jobCodes ?? [])];
+    } else {
+      roles = [];
+    }
+    return roles
+      .sort((a: any, b: any) => {
         const aL = a.band?.level ?? 9999, bL = b.band?.level ?? 9999;
         return aL !== bL ? aL - bL : a.code.localeCompare(b.code);
-      }).filter((jc: any) =>
+      })
+      .filter((jc: any) =>
         !search ||
         jc.title.toLowerCase().includes(search.toLowerCase()) ||
         jc.code.toLowerCase().includes(search.toLowerCase())
-      )
-    : [];
+      );
+  };
+
+  const sortedRoles = getRolesToShow();
 
   const del = useMutation({
     mutationFn: () => jobArchitectureService.deleteJobArea(area.id),
@@ -1135,6 +1282,11 @@ function AreaSection({ area, accentColor, colorClass, search, bands, editMode, c
     mutationFn: (id: string) => jobArchitectureService.deleteJobFamily(id),
     onSuccess: () => { toast.success('Family deleted'); onRefresh(); setFamilyAction(null); },
     onError: () => toast.error('Failed to delete family'),
+  });
+  const delSubFamily = useMutation({
+    mutationFn: (id: string) => jobArchitectureService.deleteJobSubFamily(id),
+    onSuccess: () => { toast.success('Sub-family deleted'); onRefresh(); setSubFamilyAction(null); },
+    onError: (e: any) => toast.error(e?.response?.data?.error?.message ?? 'Failed to delete sub-family'),
   });
 
   return (
@@ -1177,16 +1329,14 @@ function AreaSection({ area, accentColor, colorClass, search, bands, editMode, c
               <>
                 {/* Family tabs row */}
                 <div className="flex items-center gap-2 px-5 py-3 overflow-x-auto border-b border-border/30 bg-background/60 flex-wrap">
-                  {visibleFamilies.map(family => {
+                  {visibleFamilies.map((family: any) => {
                     const isActive = family.id === effectiveId;
-                    const roleCount = (family.jobCodes ?? []).length;
-                    const vacantCount = (family.jobCodes ?? []).filter((jc: any) =>
-                      extractEmployeeNames(jc.title).length === 0 && (jc.employees ?? []).length === 0
-                    ).length;
+                    const roleCount = countFamilyRoles(family);
+                    const vacantCount = countFamilyVacant(family);
                     return (
                       <div key={family.id} className="relative group/tab flex-shrink-0">
                         <button
-                          onClick={() => setSelectedFamilyId(family.id)}
+                          onClick={() => { setSelectedFamilyId(family.id); setSelectedSubFamilyId(null); }}
                           className={cn(
                             'flex items-center gap-2 px-4 py-2 rounded-lg border text-sm font-medium transition-all whitespace-nowrap',
                             isActive ? 'text-white shadow-sm' : 'bg-card border-border/50 text-muted-foreground hover:text-foreground hover:border-border'
@@ -1217,7 +1367,62 @@ function AreaSection({ area, accentColor, colorClass, search, bands, editMode, c
                   })}
                 </div>
 
-                {/* Role column under selected family */}
+                {/* Sub-family tabs row — only shown when selected family has sub-families */}
+                {selectedFamily && hasSubFamilies && (
+                  <div className="flex items-center gap-2 px-6 py-2 overflow-x-auto border-b border-border/20 bg-muted/10 flex-wrap">
+                    {editMode && (
+                      <button
+                        onClick={() => setAddSubFamilyForFamily(selectedFamily.id)}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-md border border-dashed border-border/50 text-[11px] text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all flex-shrink-0"
+                      >
+                        <Plus className="w-3 h-3" /> Sub-Family
+                      </button>
+                    )}
+                    {subFamilies.map((sub: any) => {
+                      const isActive = sub.id === effectiveSubId;
+                      const roleCount = (sub.jobCodes ?? []).length;
+                      return (
+                        <div key={sub.id} className="relative group/subtab flex-shrink-0">
+                          <button
+                            onClick={() => setSelectedSubFamilyId(sub.id)}
+                            className={cn(
+                              'flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium transition-all whitespace-nowrap',
+                              isActive
+                                ? 'bg-muted text-foreground border-border shadow-sm'
+                                : 'bg-background border-border/40 text-muted-foreground hover:text-foreground hover:border-border/70'
+                            )}
+                          >
+                            <span>{sub.name}</span>
+                            <span className={cn('text-[10px] px-1.5 py-0.5 rounded-full font-semibold flex-shrink-0',
+                              isActive ? 'bg-foreground/10 text-foreground' : 'bg-muted text-muted-foreground')}>
+                              {roleCount}
+                            </span>
+                          </button>
+                          {editMode && (
+                            <div className="absolute -top-1 -right-1 hidden group-hover/subtab:flex gap-0.5 z-10">
+                              <button onClick={e => { e.stopPropagation(); setSubFamilyAction({ type: 'edit', subFamily: sub }); }} className="w-4 h-4 rounded bg-primary text-white flex items-center justify-center hover:bg-primary/80 shadow-sm"><Pencil className="w-2 h-2" /></button>
+                              <button onClick={e => { e.stopPropagation(); setSubFamilyAction({ type: 'delete', subFamily: sub }); }} className="w-4 h-4 rounded bg-destructive text-white flex items-center justify-center hover:bg-destructive/80 shadow-sm"><Trash2 className="w-2 h-2" /></button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Add sub-family button when family has no sub-families yet */}
+                {selectedFamily && !hasSubFamilies && editMode && (
+                  <div className="flex items-center gap-2 px-6 py-2 border-b border-border/20 bg-muted/5">
+                    <button
+                      onClick={() => setAddSubFamilyForFamily(selectedFamily.id)}
+                      className="flex items-center gap-1.5 px-3 py-1 rounded-md border border-dashed border-border/40 text-[11px] text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all"
+                    >
+                      <Plus className="w-3 h-3" /> Add Sub-Family to {selectedFamily.name}
+                    </button>
+                  </div>
+                )}
+
+                {/* Role column under selected family / sub-family */}
                 {selectedFamily && (
                   <div className="px-5 py-4">
                     <div className="flex items-center gap-4 px-4 py-2 mb-1 border-b border-border/30">
@@ -1229,7 +1434,9 @@ function AreaSection({ area, accentColor, colorClass, search, bands, editMode, c
                     </div>
                     <div className="space-y-0.5">
                       {sortedRoles.length === 0 ? (
-                        <p className="text-sm italic text-muted-foreground/50 text-center py-8">No roles in this family</p>
+                        <p className="text-sm italic text-muted-foreground/50 text-center py-8">
+                          {hasSubFamilies && selectedSubFamily ? `No roles in ${selectedSubFamily.name}` : 'No roles in this family'}
+                        </p>
                       ) : (
                         sortedRoles.map((jc: any) => (
                           <RoleRow key={jc.id} jc={jc} bands={bands} editMode={editMode} canEdit={canEdit} onRefresh={onRefresh} />
@@ -1238,10 +1445,13 @@ function AreaSection({ area, accentColor, colorClass, search, bands, editMode, c
                     </div>
                     {editMode && (
                       <button
-                        onClick={() => setAddRoleForFamily(selectedFamily.id)}
+                        onClick={() => setAddRoleForSubFamily({
+                          familyId: selectedFamily.id,
+                          subFamilyId: hasSubFamilies && selectedSubFamily ? selectedSubFamily.id : null,
+                        })}
                         className="mt-3 flex items-center gap-2 px-4 py-2 rounded-lg border border-dashed border-border/50 text-sm text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all w-full justify-center"
                       >
-                        <Plus className="w-4 h-4" /> Add Role to {selectedFamily.name}
+                        <Plus className="w-4 h-4" /> Add Role{hasSubFamilies && selectedSubFamily ? ` to ${selectedSubFamily.name}` : ` to ${selectedFamily.name}`}
                       </button>
                     )}
                   </div>
@@ -1261,7 +1471,18 @@ function AreaSection({ area, accentColor, colorClass, search, bands, editMode, c
       {modal === 'add-family' && <FamilyModal jobAreaId={area.id} onClose={() => setModal(null)} onSaved={() => { setModal(null); onRefresh(); }} />}
       {familyAction?.type === 'edit' && <FamilyModal family={familyAction.family} onClose={() => setFamilyAction(null)} onSaved={() => { setFamilyAction(null); onRefresh(); }} />}
       {familyAction?.type === 'delete' && <DeleteConfirm label={familyAction.family.name} onConfirm={() => delFamily.mutate(familyAction.family.id)} onCancel={() => setFamilyAction(null)} loading={delFamily.isPending} />}
-      {addRoleForFamily && <JobCodeModal jobFamilyId={addRoleForFamily} bands={bands} onClose={() => setAddRoleForFamily(null)} onSaved={() => { setAddRoleForFamily(null); onRefresh(); }} />}
+      {subFamilyAction?.type === 'edit' && <SubFamilyModal subFamily={subFamilyAction.subFamily} onClose={() => setSubFamilyAction(null)} onSaved={() => { setSubFamilyAction(null); onRefresh(); }} />}
+      {subFamilyAction?.type === 'delete' && <DeleteConfirm label={subFamilyAction.subFamily.name} onConfirm={() => delSubFamily.mutate(subFamilyAction.subFamily.id)} onCancel={() => setSubFamilyAction(null)} loading={delSubFamily.isPending} />}
+      {addSubFamilyForFamily && <SubFamilyModal jobFamilyId={addSubFamilyForFamily} onClose={() => setAddSubFamilyForFamily(null)} onSaved={() => { setAddSubFamilyForFamily(null); onRefresh(); }} />}
+      {addRoleForSubFamily && (
+        <AddRoleModal
+          familyId={addRoleForSubFamily.familyId}
+          subFamilyId={addRoleForSubFamily.subFamilyId}
+          bands={bands}
+          onClose={() => setAddRoleForSubFamily(null)}
+          onSaved={() => { setAddRoleForSubFamily(null); onRefresh(); }}
+        />
+      )}
     </>
   );
 }

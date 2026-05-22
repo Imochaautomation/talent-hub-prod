@@ -60,6 +60,17 @@ export interface JobArea {
   _count?: { jobFamilies: number };
 }
 
+export interface JobSubFamily {
+  id: string;
+  name: string;
+  jobFamilyId: string;
+  jobFamily?: JobFamily;
+  createdAt: string;
+  updatedAt: string;
+  jobCodes?: JobCode[];
+  _count?: { jobCodes: number };
+}
+
 export interface JobFamily {
   id: string;
   name: string;
@@ -68,6 +79,7 @@ export interface JobFamily {
   createdAt: string;
   updatedAt: string;
   jobCodes?: JobCode[];
+  jobSubFamilies?: JobSubFamily[];
   _count?: { jobCodes: number };
 }
 
@@ -96,6 +108,8 @@ export interface JobCode {
   title: string;
   jobFamilyId: string;
   jobFamily?: JobFamily;
+  jobSubFamilyId?: string | null;
+  jobSubFamily?: JobSubFamily | null;
   bandId: string;
   band?: Band;
   gradeId?: string | null;

@@ -97,6 +97,7 @@ export const createJobCodeSchema = z.object({
   jobFamilyId: z.string().uuid('Invalid jobFamilyId'),
   bandId: z.string().uuid('Invalid bandId'),
   gradeId: z.string().uuid('Invalid gradeId').optional(),
+  jobSubFamilyId: z.string().uuid('Invalid jobSubFamilyId').optional(),
 });
 
 // undefined = preserve existing, null = clear, string = set
@@ -109,6 +110,7 @@ export const updateJobCodeSchema = z.object({
   title: trimmedName.optional(),
   bandId: z.string().uuid('Invalid bandId').optional(),
   gradeId: z.union([z.string().uuid('Invalid gradeId'), z.null()]).optional(),
+  jobSubFamilyId: z.union([z.string().uuid('Invalid jobSubFamilyId'), z.null()]).optional(),
   jobFunction: z.string().max(2000).optional(),
   reportsTo: z.string().max(200).optional(),
   roleSummary: z.string().max(5000).optional(),
@@ -116,6 +118,16 @@ export const updateJobCodeSchema = z.object({
   managerResponsibility: z.string().max(5000).optional(),
   educationExperience: z.string().max(2000).optional(),
   skillsRequired: z.string().max(5000).optional(),
+});
+
+// ─── JobSubFamily ─────────────────────────────────────────────
+export const createJobSubFamilySchema = z.object({
+  name: trimmedName,
+  jobFamilyId: z.string().uuid('Invalid jobFamilyId'),
+});
+
+export const updateJobSubFamilySchema = z.object({
+  name: trimmedName.optional(),
 });
 
 export type CreateJobAreaInput = z.infer<typeof createJobAreaSchema>;
@@ -128,3 +140,5 @@ export type CreateGradeInput = z.infer<typeof createGradeSchema>;
 export type UpdateGradeInput = z.infer<typeof updateGradeSchema>;
 export type CreateJobCodeInput = z.infer<typeof createJobCodeSchema>;
 export type UpdateJobCodeInput = z.infer<typeof updateJobCodeSchema>;
+export type CreateJobSubFamilyInput = z.infer<typeof createJobSubFamilySchema>;
+export type UpdateJobSubFamilyInput = z.infer<typeof updateJobSubFamilySchema>;

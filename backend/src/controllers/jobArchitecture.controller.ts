@@ -20,6 +20,8 @@ import {
   updateGradeSchema,
   createJobCodeSchema,
   updateJobCodeSchema,
+  createJobSubFamilySchema,
+  updateJobSubFamilySchema,
 } from '../schemas/jobArchitecture.schemas';
 
 const parseOrThrow = <T>(schema: ZodSchema<T>, body: unknown): T => {
@@ -213,6 +215,37 @@ export const jobArchitectureController = {
     try {
       await jobArchitectureService.deleteJobCode(req.params.id);
       void logAction({ userId: userId(req), action: 'JOB_CODE_DELETED', entityType: 'JobCode', entityId: req.params.id, ip: req.ip });
+      emitJobArchitectureRefresh();
+      res.json({ data: { success: true } });
+    } catch (e) { handleError(e, res, next); }
+  },
+
+  // ─── JobSubFamily ───────────────────────────────────────────────
+  getJobSubFamilies: async (req: Request, res: Response, next: NextFunction) => {
+    try { res.json({ data: await jobArchitectureService.getJobSubFamilies(req.query.jobFamilyId as string | undefined) }); } catch (e) { next(e); }
+  },
+  createJobSubFamily: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = parseOrThrow(createJobSubFamilySchema, req.body);
+      const result = await jobArchitectureService.createJobSubFamily(data);
+      void logAction({ userId: userId(req), action: 'JOB_SUBFAMILY_CREATED', entityType: 'JobSubFamily', entityId: result.id, metadata: { name: result.name, jobFamilyId: result.jobFamilyId }, ip: req.ip });
+      emitJobArchitectureRefresh();
+      res.status(201).json({ data: result });
+    } catch (e) { handleError(e, res, next); }
+  },
+  updateJobSubFamily: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = parseOrThrow(updateJobSubFamilySchema, req.body);
+      const result = await jobArchitectureService.updateJobSubFamily(req.params.id, data);
+      void logAction({ userId: userId(req), action: 'JOB_SUBFAMILY_UPDATED', entityType: 'JobSubFamily', entityId: result.id, metadata: data, ip: req.ip });
+      emitJobArchitectureRefresh();
+      res.json({ data: result });
+    } catch (e) { handleError(e, res, next); }
+  },
+  deleteJobSubFamily: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await jobArchitectureService.deleteJobSubFamily(req.params.id);
+      void logAction({ userId: userId(req), action: 'JOB_SUBFAMILY_DELETED', entityType: 'JobSubFamily', entityId: req.params.id, ip: req.ip });
       emitJobArchitectureRefresh();
       res.json({ data: { success: true } });
     } catch (e) { handleError(e, res, next); }

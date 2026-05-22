@@ -21,6 +21,11 @@ router.post('/job-families', requireRole('ADMIN', 'HR_MANAGER'), ctrl.createJobF
 router.put('/job-families/:id', requireRole('ADMIN', 'HR_MANAGER'), ctrl.updateJobFamily);
 router.delete('/job-families/:id', requireRole('ADMIN', 'HR_MANAGER'), ctrl.deleteJobFamily);
 
+router.get('/job-sub-families', ctrl.getJobSubFamilies);
+router.post('/job-sub-families', requireRole('ADMIN', 'HR_MANAGER'), ctrl.createJobSubFamily);
+router.put('/job-sub-families/:id', requireRole('ADMIN', 'HR_MANAGER'), ctrl.updateJobSubFamily);
+router.delete('/job-sub-families/:id', requireRole('ADMIN', 'HR_MANAGER'), ctrl.deleteJobSubFamily);
+
 router.delete('/job-areas/:id', requireRole('ADMIN', 'HR_MANAGER'), ctrl.deleteJobArea);
 
 router.get('/bands', ctrl.getBands);

@@ -12,6 +12,8 @@ import type {
   UpdateGradeInput,
   CreateJobCodeInput,
   UpdateJobCodeInput,
+  CreateJobSubFamilyInput,
+  UpdateJobSubFamilyInput,
 } from '../schemas/jobArchitecture.schemas';
 
 // ─── ServiceError helper ──────────────────────────────────────
@@ -39,7 +41,23 @@ export const jobArchitectureService = {
         jobFamilies: {
           orderBy: { name: 'asc' },
           include: {
+            jobSubFamilies: {
+              orderBy: { name: 'asc' },
+              include: {
+                jobCodes: {
+                  include: {
+                    band: true,
+                    grade: true,
+                    employees: {
+                      select: { id: true, firstName: true, lastName: true },
+                      orderBy: { firstName: 'asc' },
+                    },
+                  },
+                },
+              },
+            },
             jobCodes: {
+              where: { jobSubFamilyId: null },
               include: {
                 band: true,
                 grade: true,
@@ -55,13 +73,18 @@ export const jobArchitectureService = {
       orderBy: { name: 'asc' },
     });
 
-    // Sort job codes within each family by band.level (matches BAND_ORDER in shared/constants)
+    // Sort job codes within each sub-family by band.level
     for (const area of areas) {
       for (const family of area.jobFamilies) {
-        (family.jobCodes as any[]).sort((a, b) => {
-          const aLevel = a.band?.level ?? 9999;
-          const bLevel = b.band?.level ?? 9999;
-          return aLevel !== bLevel ? aLevel - bLevel : a.code.localeCompare(b.code);
+        for (const sub of (family as any).jobSubFamilies ?? []) {
+          (sub.jobCodes as any[]).sort((a: any, b: any) => {
+            const aL = a.band?.level ?? 9999, bL = b.band?.level ?? 9999;
+            return aL !== bL ? aL - bL : a.code.localeCompare(b.code);
+          });
+        }
+        (family.jobCodes as any[]).sort((a: any, b: any) => {
+          const aL = (a as any).band?.level ?? 9999, bL = (b as any).band?.level ?? 9999;
+          return aL !== bL ? aL - bL : a.code.localeCompare(b.code);
         });
       }
     }
@@ -167,6 +190,44 @@ export const jobArchitectureService = {
         );
       }
       return tx.jobFamily.delete({ where: { id } });
+    });
+  },
+
+  // ─── JobSubFamily ─────────────────────────────────────────────
+  getJobSubFamilies: async (jobFamilyId?: string) =>
+    prisma.jobSubFamily.findMany({
+      where: jobFamilyId ? { jobFamilyId } : undefined,
+      include: { jobFamily: true },
+      orderBy: { name: 'asc' },
+    }),
+
+  createJobSubFamily: async (data: CreateJobSubFamilyInput) => {
+    const family = await prisma.jobFamily.findUnique({ where: { id: data.jobFamilyId } });
+    if (!family) throw notFound('FAMILY_NOT_FOUND', 'Job family not found');
+    const existing = await prisma.jobSubFamily.findFirst({
+      where: { name: { equals: data.name, mode: 'insensitive' }, jobFamilyId: data.jobFamilyId },
+    });
+    if (existing) throw conflict('SUBFAMILY_NAME_EXISTS', `A sub-family named "${data.name}" already exists in this family`);
+    return prisma.jobSubFamily.create({ data });
+  },
+
+  updateJobSubFamily: async (id: string, data: UpdateJobSubFamilyInput) => {
+    const sub = await prisma.jobSubFamily.findUnique({ where: { id } });
+    if (!sub) throw notFound('SUBFAMILY_NOT_FOUND', 'Job sub-family not found');
+    if (data.name) {
+      const existing = await prisma.jobSubFamily.findFirst({
+        where: { name: { equals: data.name, mode: 'insensitive' }, jobFamilyId: sub.jobFamilyId, NOT: { id } },
+      });
+      if (existing) throw conflict('SUBFAMILY_NAME_EXISTS', `A sub-family named "${data.name}" already exists`);
+    }
+    return prisma.jobSubFamily.update({ where: { id }, data });
+  },
+
+  deleteJobSubFamily: async (id: string) => {
+    return prisma.$transaction(async (tx) => {
+      const count = await tx.jobCode.count({ where: { jobSubFamilyId: id } });
+      if (count > 0) throw conflict('SUBFAMILY_IN_USE', `Cannot delete sub-family — ${count} role(s) still reference it`, { count });
+      return tx.jobSubFamily.delete({ where: { id } });
     });
   },
 
@@ -349,6 +410,15 @@ export const jobArchitectureService = {
       }
     }
 
+    // Validate jobSubFamilyId if provided
+    if (data.jobSubFamilyId) {
+      const sub = await prisma.jobSubFamily.findUnique({ where: { id: data.jobSubFamilyId } });
+      if (!sub) throw notFound('SUBFAMILY_NOT_FOUND', 'Job sub-family not found');
+      if (sub.jobFamilyId !== data.jobFamilyId) {
+        throw conflict('SUBFAMILY_FAMILY_MISMATCH', 'Sub-family does not belong to the specified family', { subFamilyId: sub.jobFamilyId, expectedFamilyId: data.jobFamilyId });
+      }
+    }
+
     return prisma.jobCode.create({ data, include: { band: true, jobFamily: true, grade: true } });
   },
 
@@ -397,11 +467,26 @@ export const jobArchitectureService = {
     }
     // If undefined: omit gradeId entirely → preserve existing
 
-    const { gradeId: _ignore, ...rest } = data;
+    // jobSubFamilyId: undefined = preserve, null = clear, string = validate + set
+    let subFamilyUpdate: { jobSubFamilyId?: string | null } = {};
+    if (data.jobSubFamilyId === null) {
+      subFamilyUpdate = { jobSubFamilyId: null };
+    } else if (typeof data.jobSubFamilyId === 'string') {
+      const sub = await prisma.jobSubFamily.findUnique({ where: { id: data.jobSubFamilyId } });
+      if (!sub) throw notFound('SUBFAMILY_NOT_FOUND', 'Job sub-family not found');
+      const effectiveFamilyId = data.jobFamilyId ?? existing.jobFamilyId;
+      if (sub.jobFamilyId !== effectiveFamilyId) {
+        throw conflict('SUBFAMILY_FAMILY_MISMATCH', 'Sub-family does not belong to the role\'s family', { subFamilyId: sub.jobFamilyId, expectedFamilyId: effectiveFamilyId });
+      }
+      subFamilyUpdate = { jobSubFamilyId: data.jobSubFamilyId };
+    }
+
+    const { gradeId: _ignore, jobSubFamilyId: _ignoreSubFamily, ...rest } = data;
     void _ignore;
+    void _ignoreSubFamily;
     return prisma.jobCode.update({
       where: { id },
-      data: { ...rest, ...gradeUpdate },
+      data: { ...rest, ...gradeUpdate, ...subFamilyUpdate },
       include: { band: true, jobFamily: true, grade: true },
     });
   },
