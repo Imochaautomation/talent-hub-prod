@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Layers, ChevronRight, ChevronDown, Building2,
   Briefcase, Tag, Star, Search, Pencil, Plus,
-  Trash2, X, Check, Loader2, CheckCheck, Users, Lock, Upload,
+  Trash2, X, Check, Loader2, CheckCheck, Users, Lock, Upload, FolderOpen,
 } from 'lucide-react';
 import * as Popover from '@radix-ui/react-popover';
 import BulkImportJobArchModal from '../components/BulkImportJobArchModal';
@@ -1531,6 +1531,9 @@ export default function JobArchitecturePage() {
       return fs + direct + subRoles;
     }, 0), 0);
 
+  const totalSubFamilies = areas.reduce((s, a) =>
+    s + (a.jobFamilies ?? []).reduce((fs: number, f: any) => fs + (f.jobSubFamilies?.length ?? 0), 0), 0);
+
   const filteredAreas = search
     ? areas.filter(a =>
         a.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -1591,10 +1594,11 @@ export default function JobArchitecturePage() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
         {[
           { label: 'Job Areas', value: areas.length, icon: Building2, color: 'text-blue-500' },
           { label: 'Job Families', value: totalFamilies, icon: Briefcase, color: 'text-violet-500' },
+          { label: 'Sub Job Families', value: totalSubFamilies, icon: FolderOpen, color: 'text-cyan-500' },
           { label: 'Total Roles', value: totalRoles, icon: Tag, color: 'text-emerald-500' },
           { label: 'Bands', value: bands.length, icon: Layers, color: 'text-amber-500' },
         ].map(({ label, value, icon: Icon, color }) => (
