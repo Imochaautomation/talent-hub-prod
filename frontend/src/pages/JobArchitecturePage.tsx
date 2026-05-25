@@ -1094,7 +1094,7 @@ function RoleRow({ jc, bands, editMode, canEdit, onRefresh }: {
         </div>
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <span className="text-sm font-semibold text-foreground flex-1 min-w-0 leading-snug">{displayTitle}</span>
-          <div className="flex-shrink-0 w-[220px]" onClick={e => e.stopPropagation()}>
+          <div className="flex-shrink-0 w-[190px]" onClick={e => e.stopPropagation()}>
             {isVacant ? (
               <span className="inline-flex items-center gap-1.5 text-[11px] italic text-muted-foreground/55 px-2.5 py-1 rounded-full border border-dashed border-border/40 bg-muted/15">
                 <span className="w-1.5 h-1.5 rounded-full bg-border/50 flex-shrink-0" />Vacant
@@ -1737,8 +1737,12 @@ export default function JobArchitecturePage() {
                     )}
                     <span className="text-xs text-muted-foreground">
                       {areas.reduce((count, a) =>
-                        count + (a.jobFamilies ?? []).reduce((fc: number, f: any) =>
-                          fc + (f.jobCodes ?? []).filter((jc: any) => jc.band?.code === band.code).length, 0), 0
+                        count + (a.jobFamilies ?? []).reduce((fc: number, f: any) => {
+                          const direct = (f.jobCodes ?? []).filter((jc: any) => jc.band?.code === band.code).length;
+                          const subRoles = (f.jobSubFamilies ?? []).reduce((sc: number, sub: any) =>
+                            sc + (sub.jobCodes ?? []).filter((jc: any) => jc.band?.code === band.code).length, 0);
+                          return fc + direct + subRoles;
+                        }, 0), 0
                       )} roles
                     </span>
                     {editMode && (
