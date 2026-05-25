@@ -1090,7 +1090,6 @@ function RoleRow({ jc, bands, editMode, canEdit, onRefresh }: {
         <div className="flex items-center gap-2 flex-shrink-0 w-[190px] min-w-0">
           {jc.band && <BandPill code={jc.band.code} label={jc.band.label} isRSU={jc.band.isEligibleForRSU} />}
           <span className="font-mono text-[10px] text-muted-foreground/55 tracking-wide truncate">{jc.code}</span>
-          {jc.grade && <span className="text-[9px] text-muted-foreground px-1 py-0.5 rounded border border-border/40 bg-muted/30 flex-shrink-0">{jc.grade.gradeCode}</span>}
         </div>
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <span className="text-sm font-semibold text-foreground flex-1 min-w-0 leading-snug">{displayTitle}</span>
