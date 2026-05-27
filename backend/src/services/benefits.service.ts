@@ -143,7 +143,7 @@ export const benefitsService = {
     const benefitMap1 = new Map(benefits.map(b => [norm1(b.name), b.id]));
     const benefitMap2 = new Map(benefits.map(b => [norm2(b.name), b.id]));
     const employeeByEmpId = new Map(allEmployees.map(e => [e.employeeId, e.id]));
-    const employeeByEmail = new Map(allEmployees.map(e => [e.email.toLowerCase(), e.id]));
+    const employeeByEmail = new Map(allEmployees.filter(e => e.email != null).map(e => [e.email!.toLowerCase(), e.id]));
 
     let updated = 0; let failed = 0; const errors: string[] = [];
 

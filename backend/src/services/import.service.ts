@@ -751,7 +751,7 @@ export const importService = {
           select: { id: true, email: true },
         })
       : [];
-    const managerEmailMap = new Map(managerRows.map(m => [m.email, m.id]));
+    const managerEmailMap = new Map(managerRows.filter(m => m.email != null).map(m => [m.email!, m.id]));
 
     // ── 2. Pre-fetch all existing employees in bulk (eliminates 2 findUnique per row) ──
     const allCsvEmployeeIds = rows.map(r => String(r.employeeId || '').trim()).filter(Boolean);

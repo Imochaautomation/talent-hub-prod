@@ -474,7 +474,7 @@ export const jobArchitectureService = {
     } else if (typeof data.jobSubFamilyId === 'string') {
       const sub = await prisma.jobSubFamily.findUnique({ where: { id: data.jobSubFamilyId } });
       if (!sub) throw notFound('SUBFAMILY_NOT_FOUND', 'Job sub-family not found');
-      const effectiveFamilyId = data.jobFamilyId ?? existing.jobFamilyId;
+      const effectiveFamilyId = existing.jobFamilyId;
       if (sub.jobFamilyId !== effectiveFamilyId) {
         throw conflict('SUBFAMILY_FAMILY_MISMATCH', 'Sub-family does not belong to the role\'s family', { subFamilyId: sub.jobFamilyId, expectedFamilyId: effectiveFamilyId });
       }
