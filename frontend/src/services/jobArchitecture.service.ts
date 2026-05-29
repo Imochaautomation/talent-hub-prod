@@ -142,11 +142,14 @@ export const jobArchitectureService = {
   },
 
   // ── Bulk Import ──────────────────────────────────────────────────────
-  downloadImportTemplate: () => {
+  downloadImportTemplate: async () => {
+    const res = await api.get('/job-architecture/bulk-import/template', { responseType: 'blob' });
+    const url = URL.createObjectURL(new Blob([res.data]));
     const a = document.createElement('a');
-    a.href = '/api/job-architecture/bulk-import/template';
+    a.href = url;
     a.download = 'job_architecture_import_template.xlsx';
     a.click();
+    URL.revokeObjectURL(url);
   },
 
   previewBulkImport: async (file: File) => {
