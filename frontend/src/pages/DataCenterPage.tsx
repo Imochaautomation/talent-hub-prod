@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Upload, Download, Users, Gift, CheckCircle2, XCircle, Loader2, FileSpreadsheet, X } from 'lucide-react';
+import { Upload, Download, Gift, CheckCircle2, XCircle, Loader2, FileSpreadsheet, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { api } from '../lib/api';
 import { getSocket } from '../lib/socket';
@@ -450,7 +450,7 @@ export default function DataCenterPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Data Center</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Upload employee and benefits data from Excel or CSV files
+          Upload benefits data and export full reports. To import employee records, use the Job Architecture page.
         </p>
       </div>
 
@@ -462,17 +462,6 @@ export default function DataCenterPage() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-5">
-        <UploadCard
-          title="Employee Data"
-          description="Upload employee records in Zoho Compensation Details format (.csv or .xlsx). Supports up to 5,000 rows per upload."
-          icon={Users}
-          templateLabel="Download Employee Template"
-          templateHref="/import/template"
-          uploadEndpoint="/import/employees"
-          acceptModes
-          progressEvent="import:progress"
-          completeEvent="import:complete"
-        />
         <UploadCard
           title="Benefits & RSU Data"
           description="Upload employee benefit enrollments and RSU utilization data. Matches employees by Employee ID and benefits by name."

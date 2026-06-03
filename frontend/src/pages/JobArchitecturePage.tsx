@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import * as Popover from '@radix-ui/react-popover';
 import BulkImportJobArchModal from '../components/BulkImportJobArchModal';
+import ImportEmployeesModal from '../components/ImportEmployeesModal';
 import { toast } from 'sonner';
 import { jobArchitectureService } from '../services/jobArchitecture.service';
 import AddEmployeeModal from '../components/employees/AddEmployeeModal';
@@ -1479,7 +1480,7 @@ function AreaSection({ area, accentColor, colorClass, search, bands, editMode, c
 
 export default function JobArchitecturePage() {
   const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState<'hierarchy' | 'bands'>('hierarchy');
+  const [activeTab, setActiveTab] = useState<'hierarchy' | 'bands' | 'employees'>('hierarchy');
   const [editMode, setEditMode] = useState(false);
   const [bandModal, setBandModal] = useState<any>(null);
   const [areaModal, setAreaModal] = useState(false);
@@ -1489,7 +1490,7 @@ export default function JobArchitecturePage() {
   const canEdit = user?.role === 'ADMIN' || user?.role === 'HR_MANAGER';
 
   // Exit edit mode when switching tabs
-  const handleTabChange = (tab: 'hierarchy' | 'bands') => {
+  const handleTabChange = (tab: 'hierarchy' | 'bands' | 'employees') => {
     setActiveTab(tab);
     setEditMode(false);
   };
@@ -1616,24 +1617,24 @@ export default function JobArchitecturePage() {
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 rounded-lg bg-muted/40 border border-border w-fit">
-        {(['hierarchy', 'bands'] as const).map(tab => (
+        {(['hierarchy', 'bands', 'employees'] as const).map(tab => (
           <button
             key={tab}
             onClick={() => handleTabChange(tab)}
             className={cn(
-              'px-4 py-1.5 rounded-md text-sm font-medium transition-colors capitalize',
+              'px-4 py-1.5 rounded-md text-sm font-medium transition-colors',
               activeTab === tab
                 ? 'bg-background text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
             )}
           >
-            {tab === 'hierarchy' ? 'Hierarchy' : 'Band Structure'}
+            {tab === 'hierarchy' ? 'Hierarchy' : tab === 'bands' ? 'Band Structure' : 'Employees'}
           </button>
         ))}
       </div>
 
       {/* Edit mode banner */}
-      {editMode && (
+      {editMode && activeTab !== 'employees' && (
         <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-primary/8 border border-primary/20 text-sm text-primary">
           <Pencil className="w-4 h-4 flex-shrink-0" />
           <span>Edit mode is on — make changes below, then click <strong>Done Editing</strong> when finished.</span>
@@ -1765,6 +1766,11 @@ export default function JobArchitecturePage() {
         </div>
       )}
 
+      {/* Employees Tab */}
+      {activeTab === 'employees' && (
+        <ImportEmployeesModal inline />
+      )}
+
       {/* Global modals */}
       {areaModal && (
         <AreaModal
@@ -1783,6 +1789,7 @@ export default function JobArchitecturePage() {
         open={bulkImportOpen}
         onClose={() => { setBulkImportOpen(false); refreshHierarchy(); }}
       />
+
     </div>
   );
 }

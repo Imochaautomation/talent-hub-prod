@@ -37,6 +37,7 @@ export interface ParsedRow {
   _sourceRow: number;
   jobArea: string;
   jobFamily: string;
+  subJobFamily?: string;
   jobTitle: string;
   bandCode: string;
   gradeCode?: string;
@@ -50,7 +51,7 @@ export interface ParsedRow {
   skillsRequired?: string;
 }
 
-export type DiffItemType = 'JobArea' | 'JobFamily' | 'Band' | 'Grade' | 'JobCode';
+export type DiffItemType = 'JobArea' | 'JobFamily' | 'JobSubFamily' | 'Band' | 'Grade' | 'JobCode';
 
 export interface DiffItem {
   type: DiffItemType;
@@ -105,7 +106,9 @@ export interface ApplyResult {
 // ─── Column name aliases ──────────────────────────────────────────────────────
 
 const AREA_ALIASES = ['job area', 'main stream', 'area', 'department', 'stream'];
-const FAMILY_ALIASES = ['job family', 'sub stream', 'sub-stream', 'family', 'sub stream name', 'function'];
+const FAMILY_ALIASES = ['job family', 'family', 'function'];
+const SUB_FAMILY_ALIASES = ['sub job family', 'sub-job-family', 'sub family', 'sub-family', 'subfamiy',
+  'sub stream', 'sub-stream', 'sub stream name', 'sub_family', 'subjobfamily'];
 const TITLE_ALIASES = ['job title', 'roles', 'role', 'title', 'designation', 'position'];
 const BAND_ALIASES = ['band code', 'band', 'grade/level', 'level/grade', 'level', 'grade'];
 const GRADE_CODE_ALIASES = ['grade code', 'sub grade', 'sub-grade'];
@@ -149,19 +152,20 @@ function parseDetailSheet(ws: XLSX.WorkSheet, sheetName: string): { rows: Parsed
   if (raw.length === 0) return { rows: [], errors: [] };
 
   const headers = Object.keys(raw[0]);
-  const areaCol     = findCol(headers, AREA_ALIASES);
-  const familyCol   = findCol(headers, FAMILY_ALIASES);
-  const titleCol    = findCol(headers, TITLE_ALIASES);
-  const bandCol     = findCol(headers, BAND_ALIASES);
-  const gradeCol    = findCol(headers, GRADE_CODE_ALIASES);
-  const jobCodeCol  = findCol(headers, JOB_CODE_ALIASES);
-  const funcCol     = findCol(headers, JOB_FUNC_ALIASES);
-  const reportsCol  = findCol(headers, REPORTS_TO_ALIASES);
-  const summaryCol  = findCol(headers, ROLE_SUMMARY_ALIASES);
-  const respCol     = findCol(headers, ROLE_RESP_ALIASES);
-  const mgrRespCol  = findCol(headers, MANAGER_RESP_ALIASES);
-  const eduCol      = findCol(headers, EDU_EXP_ALIASES);
-  const skillsCol   = findCol(headers, SKILLS_ALIASES);
+  const areaCol      = findCol(headers, AREA_ALIASES);
+  const familyCol    = findCol(headers, FAMILY_ALIASES);
+  const subFamilyCol = findCol(headers, SUB_FAMILY_ALIASES);
+  const titleCol     = findCol(headers, TITLE_ALIASES);
+  const bandCol      = findCol(headers, BAND_ALIASES);
+  const gradeCol     = findCol(headers, GRADE_CODE_ALIASES);
+  const jobCodeCol   = findCol(headers, JOB_CODE_ALIASES);
+  const funcCol      = findCol(headers, JOB_FUNC_ALIASES);
+  const reportsCol   = findCol(headers, REPORTS_TO_ALIASES);
+  const summaryCol   = findCol(headers, ROLE_SUMMARY_ALIASES);
+  const respCol      = findCol(headers, ROLE_RESP_ALIASES);
+  const mgrRespCol   = findCol(headers, MANAGER_RESP_ALIASES);
+  const eduCol       = findCol(headers, EDU_EXP_ALIASES);
+  const skillsCol    = findCol(headers, SKILLS_ALIASES);
 
   const rows: ParsedRow[] = [];
   const errors: ParseError[] = [];
@@ -189,6 +193,7 @@ function parseDetailSheet(ws: XLSX.WorkSheet, sheetName: string): { rows: Parsed
       _sourceRow: rowNum,
       jobArea,
       jobFamily,
+      subJobFamily: subFamilyCol ? str(r[subFamilyCol]) || undefined : undefined,
       jobTitle,
       bandCode,
       gradeCode: (gradeCol && gradeCol !== effectiveBandCol) ? str(r[gradeCol]) || undefined : undefined,
@@ -513,6 +518,15 @@ export async function previewBulkImport(rows: ParsedRow[], errors: ParseError[],
       }
     }
 
+    // Check/plan sub-family (if provided)
+    if (row.subJobFamily) {
+      const subFamCreateKey = `JobSubFamily::${areaKey}::${row.jobFamily.toLowerCase()}::${row.subJobFamily.toLowerCase()}`;
+      if (!seen.has(subFamCreateKey)) {
+        seen.add(subFamCreateKey);
+        toCreate.push({ type: 'JobSubFamily', name: row.subJobFamily, details: { jobArea: row.jobArea, jobFamily: row.jobFamily } });
+      }
+    }
+
     // Check/plan grade if specified
     if (row.gradeCode) {
       const existingBand = bandMap.get(bandKey);
@@ -541,7 +555,9 @@ export async function previewBulkImport(rows: ParsedRow[], errors: ParseError[],
       if (!seen.has(createKey)) {
         seen.add(createKey);
         toCreate.push({ type: 'JobCode', name: row.jobTitle, details: {
-          jobArea: row.jobArea, jobFamily: row.jobFamily, bandCode: row.bandCode,
+          jobArea: row.jobArea, jobFamily: row.jobFamily,
+          ...(row.subJobFamily && { subJobFamily: row.subJobFamily }),
+          bandCode: row.bandCode,
         } });
       }
     } else {
@@ -612,15 +628,17 @@ export async function applyBulkImport(
   // Build working maps — we'll mutate these as we create new records
   const areaMap   = new Map<string, string>(); // name.lower → id
   const familyMap = new Map<string, string>(); // areaId::name.lower → id
-  const bandMap   = new Map<string, string>(); // code.lower → id
-  const gradeMap  = new Map<string, string>(); // bandId::code.lower → id
+  const bandMap      = new Map<string, string>(); // code.lower → id
+  const gradeMap     = new Map<string, string>(); // bandId::code.lower → id
+  const subFamilyMap = new Map<string, string>(); // familyId::name.lower → id
   const jobCodeTitleMap = new Map<string, string>(); // title.lower → id
 
   // Seed maps from DB
-  for (const a of await prisma.jobArea.findMany())     areaMap.set(a.name.toLowerCase(), a.id);
-  for (const f of await prisma.jobFamily.findMany())   familyMap.set(`${f.jobAreaId}::${f.name.toLowerCase()}`, f.id);
-  for (const b of await prisma.band.findMany())        bandMap.set(b.code.toLowerCase(), b.id);
-  for (const g of await prisma.grade.findMany())       gradeMap.set(`${g.bandId}::${g.gradeCode.toLowerCase()}`, g.id);
+  for (const a of await prisma.jobArea.findMany())       areaMap.set(a.name.toLowerCase(), a.id);
+  for (const f of await prisma.jobFamily.findMany())     familyMap.set(`${f.jobAreaId}::${f.name.toLowerCase()}`, f.id);
+  for (const sf of await prisma.jobSubFamily.findMany()) subFamilyMap.set(`${sf.jobFamilyId}::${sf.name.toLowerCase()}`, sf.id);
+  for (const b of await prisma.band.findMany())          bandMap.set(b.code.toLowerCase(), b.id);
+  for (const g of await prisma.grade.findMany())         gradeMap.set(`${g.bandId}::${g.gradeCode.toLowerCase()}`, g.id);
   const allJc = await prisma.jobCode.findMany({ select: { id: true, title: true, code: true } });
   for (const jc of allJc) jobCodeTitleMap.set(jc.title.toLowerCase(), jc.id);
 
@@ -689,6 +707,18 @@ export async function applyBulkImport(
       }
       const jobFamilyId = familyMap.get(famKey)!;
 
+      // 4.5. Ensure JobSubFamily (if provided)
+      let jobSubFamilyId: string | undefined;
+      if (row.subJobFamily) {
+        const subFamKey = `${jobFamilyId}::${row.subJobFamily.toLowerCase()}`;
+        if (!subFamilyMap.has(subFamKey)) {
+          const sf = await prisma.jobSubFamily.create({ data: { name: row.subJobFamily, jobFamilyId } });
+          subFamilyMap.set(subFamKey, sf.id);
+          created++;
+        }
+        jobSubFamilyId = subFamilyMap.get(subFamKey)!;
+      }
+
       // 5. JobCode — upsert by title
       const titleKey = row.jobTitle.toLowerCase();
       const code = uniqueCode(row.jobCode || slugify(row.jobTitle, row.bandCode));
@@ -708,6 +738,7 @@ export async function applyBulkImport(
           code,
           title: row.jobTitle,
           jobFamilyId,
+          ...(jobSubFamilyId && { jobSubFamilyId }),
           bandId,
           gradeId: gradeId ?? null,
           ...richFields,
@@ -718,6 +749,7 @@ export async function applyBulkImport(
         const existingId = jobCodeTitleMap.get(titleKey)!;
         // Strip undefined values — only update fields that are provided
         const updateData: Record<string, unknown> = { bandId, jobFamilyId };
+        if (jobSubFamilyId) updateData.jobSubFamilyId = jobSubFamilyId;
         if (gradeId) updateData.gradeId = gradeId;
         for (const [k, v] of Object.entries(richFields)) {
           if (v !== undefined && v !== '') updateData[k] = v;
@@ -830,10 +862,13 @@ export async function generateImportTemplate(): Promise<Buffer> {
     ['  Band Code',  'Level code — e.g. A1, A2, P1, P2, M1. New bands are created automatically.'],
     [],
     ['OPTIONAL COLUMNS (leave blank if not applicable)'],
-    ['  Grade Code',             'Sub-grade within a band — e.g. G1, G2'],
-    ['  Job Code',               'Short unique code — auto-generated if left blank (e.g. SE-P1)'],
-    ['  Job Function',           'Functional area or team'],
-    ['  Reports To',             'Role title this position reports to'],
+    ['  Sub Job Family', 'Sub-group within a Job Family — e.g. Frontend, Backend within Development'],
+    ['  Grade Code',     'Sub-grade within a band — e.g. G1, G2'],
+    ['  Job Code',       'Short unique code — auto-generated if left blank (e.g. SE-P1)'],
+    ['  Job Function',   'Functional area or team'],
+    ['  Reports To',     'Role title this position reports to'],
+    [],
+    ['ADVANCED OPTIONAL COLUMNS (add these columns manually if you need them)'],
     ['  Role Summary',           'Brief description of the role'],
     ['  Role Responsibilities',  'Key duties — use numbered list or bullet points'],
     ['  Manager Responsibility', 'People management obligations (or "N/A")'],
@@ -857,47 +892,16 @@ export async function generateImportTemplate(): Promise<Buffer> {
 
   // ── Sheet 2: Import data (the one users fill in) ──────────────────────────────
   const REQUIRED = ['Job Area', 'Job Family', 'Job Title', 'Band Code'];
-  const OPTIONAL = ['Grade Code', 'Job Code', 'Job Function', 'Reports To', 'Role Summary',
-    'Role Responsibilities', 'Manager Responsibility', 'Education & Experience', 'Skills Required'];
+  const OPTIONAL = ['Sub Job Family', 'Grade Code', 'Job Code', 'Job Function', 'Reports To'];
   const headers = [...REQUIRED, ...OPTIONAL];
 
   const examples = [
-    ['Engineering', 'Development', 'Associate Software Engineer', 'A1', '', 'ASE-A1',
-      'Development', 'Technical Lead',
-      'Assist senior engineers in developing and testing software.',
-      '1. Write code to meet requirements\n2. Participate in code reviews\n3. Fix bugs',
-      'N/A', '0-2 years. BSc in Computer Science or related field.',
-      'Java, Python, OOP, SQL'],
-    ['Engineering', 'Development', 'Software Engineer', 'P1', '', 'SE-P1',
-      'Development', 'Technical Lead',
-      'Design, develop and test software applications across the full lifecycle.',
-      '1. Design algorithms\n2. Write efficient reusable code\n3. Troubleshoot and debug',
-      'N/A', '2-4 years. BSc in Computer Science or related field.',
-      'Java, Python, REST APIs, Git'],
-    ['Engineering', 'Development', 'Senior Software Engineer', 'P2', '', 'SSE-P2',
-      'Development', 'Technical Lead',
-      'Lead complex software development and mentor junior engineers.',
-      '1. Architect systems\n2. Lead code reviews\n3. Drive technical roadmap',
-      'N/A', 'Minimum 4 years. Proven experience with software frameworks.',
-      'Java, Microservices, Cloud (AWS/Azure), CI/CD'],
-    ['Marketing', 'Brand Marketing', 'Brand Marketing Executive', 'A2', '', 'BME-A2',
-      'Brand Marketing', 'Brand Marketing Manager',
-      'Execute brand marketing campaigns across digital and offline channels.',
-      '1. Assist in campaign execution\n2. Monitor brand metrics\n3. Coordinate with agencies',
-      'N/A', '1-2 years in marketing. Degree in Marketing or Communications.',
-      'Brand Strategy, Social Media, Canva, Google Analytics'],
-    ['Marketing', 'SEO / SEM', 'SEO Specialist', 'P1', '', 'SEO-P1',
-      'Digital Marketing', 'Digital Marketing Manager',
-      'Drive organic growth through on-page and off-page SEO strategies.',
-      '1. Conduct keyword research\n2. Optimise website content\n3. Build backlinks',
-      'N/A', '2-4 years in SEO. Google Analytics certified preferred.',
-      'SEO, Google Analytics, Ahrefs, SEM Rush, Content Strategy'],
-    ['Customer Success', 'Customer Support', 'Customer Support Executive', 'A2', '', 'CSE-A2',
-      'Customer Support', 'Customer Support Manager',
-      'Provide first-line support and resolve customer queries.',
-      '1. Handle inbound tickets\n2. Escalate complex issues\n3. Maintain CSAT scores',
-      'N/A', '1-2 years in customer support.',
-      'CRM tools, Communication, Problem Solving'],
+    ['Engineering', 'Development', 'Associate Software Engineer', 'A1', 'Backend', '', 'ASE-A1', 'Development', 'Technical Lead'],
+    ['Engineering', 'Development', 'Software Engineer', 'P1', 'Backend', '', 'SE-P1', 'Development', 'Technical Lead'],
+    ['Engineering', 'Development', 'Senior Software Engineer', 'P2', 'Backend', '', 'SSE-P2', 'Development', 'Technical Lead'],
+    ['Marketing', 'Brand Marketing', 'Brand Marketing Executive', 'A2', '', '', 'BME-A2', 'Brand Marketing', 'Brand Marketing Manager'],
+    ['Marketing', 'SEO / SEM', 'SEO Specialist', 'P1', '', '', 'SEO-P1', 'Digital Marketing', 'Digital Marketing Manager'],
+    ['Customer Success', 'Customer Support', 'Customer Support Executive', 'A2', '', '', 'CSE-A2', 'Customer Support', 'Customer Support Manager'],
   ];
 
   const ws2 = XLSX.utils.aoa_to_sheet([headers, ...examples]);
