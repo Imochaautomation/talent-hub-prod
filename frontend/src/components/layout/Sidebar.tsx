@@ -67,7 +67,6 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'People',
     icon: Users,
     items: [
-      { path: '/employees',        label: 'Employees',         icon: Users,    feature: 'employee.view'     },
       { path: '/job-architecture', label: 'Job Architecture',  icon: Layers                                 },
       { path: '/performance',      label: 'Performance',       icon: TrendingUp, feature: 'performance.view'},
     ],

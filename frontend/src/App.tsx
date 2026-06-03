@@ -9,7 +9,6 @@ import { useAuthStore } from './store/authStore';
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const JobArchitecturePage = lazy(() => import('./pages/JobArchitecturePage'));
-const EmployeeDirectoryPage = lazy(() => import('./pages/EmployeeDirectoryPage'));
 const EmployeeProfilePage = lazy(() => import('./pages/EmployeeProfilePage'));
 const SalaryBandDesignerPage = lazy(() => import('./pages/SalaryBandDesignerPage'));
 const PayEquityPage = lazy(() => import('./pages/PayEquityPage'));
@@ -58,7 +57,7 @@ function AppRoutes() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="job-architecture" element={<JobArchitecturePage />} />
-          <Route path="employees" element={<EmployeeDirectoryPage />} />
+          <Route path="employees" element={<Navigate to="/job-architecture" replace />} />
           <Route path="employees/:id" element={<EmployeeProfilePage />} />
           <Route path="salary-bands" element={<SalaryBandDesignerPage />} />
           <Route path="pay-equity" element={<PayEquityPage />} />

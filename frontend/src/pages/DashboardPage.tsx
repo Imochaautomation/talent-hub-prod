@@ -80,7 +80,7 @@ function KPISkeleton() {
 const QUICK_LINKS = [
   { to: '/compensation', label: 'Compensation Hub', icon: Building2, color: 'text-violet-500' },
   { to: '/benefits-hub', label: 'Benefits Hub', icon: Gift, color: 'text-teal-500' },
-  { to: '/employees', label: 'Employees', icon: Users, color: 'text-blue-500' },
+  { to: '/job-architecture', label: 'Employees', icon: Users, color: 'text-blue-500' },
   { to: '/pay-equity', label: 'Pay Equity', icon: Scale, color: 'text-purple-500' },
   { to: '/performance', label: 'Performance', icon: TrendingUp, color: 'text-emerald-500' },
   { to: '/salary-bands', label: 'Salary Bands', icon: BarChart3, color: 'text-indigo-500' },

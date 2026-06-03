@@ -197,10 +197,10 @@ export default function EmployeeProfilePage() {
       <div className="flex flex-col items-center justify-center h-64 gap-3">
         <p className="text-muted-foreground text-sm">Employee not found or failed to load.</p>
         <button
-          onClick={() => navigate('/employees')}
+          onClick={() => navigate('/job-architecture')}
           className="text-sm text-primary underline underline-offset-2"
         >
-          Back to Employees
+          Back to Job Architecture
         </button>
       </div>
     );
@@ -242,11 +242,11 @@ export default function EmployeeProfilePage() {
     <div className="space-y-6">
       {/* Back Button */}
       <button
-        onClick={() => navigate('/employees')}
+        onClick={() => navigate('/job-architecture')}
         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
-        Back to Employees
+        Back to Job Architecture
       </button>
 
       {/* ── Header ──────────────────────────────────────────── */}
