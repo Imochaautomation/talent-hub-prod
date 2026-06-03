@@ -122,8 +122,10 @@ export function useSocket() {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['pay-equity'] });
       queryClient.invalidateQueries({ queryKey: ['salary-bands'] });
-      queryClient.invalidateQueries({ queryKey: ['bands'] });
-      queryClient.invalidateQueries({ queryKey: ['job-architecture', 'hierarchy'] });
+      // Only refetch bands/hierarchy if a component is actively observing them —
+      // avoids spurious 401s when the user is on a page that doesn't mount these queries.
+      queryClient.invalidateQueries({ queryKey: ['bands'], refetchType: 'active' });
+      queryClient.invalidateQueries({ queryKey: ['job-architecture', 'hierarchy'], refetchType: 'active' });
     });
 
     return () => {
