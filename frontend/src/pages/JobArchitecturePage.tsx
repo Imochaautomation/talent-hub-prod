@@ -9,6 +9,7 @@ import {
 import * as Popover from '@radix-ui/react-popover';
 import BulkImportJobArchModal from '../components/BulkImportJobArchModal';
 import ImportEmployeesModal from '../components/ImportEmployeesModal';
+import EmployeeDirectoryPage from './EmployeeDirectoryPage';
 import { toast } from 'sonner';
 import { jobArchitectureService } from '../services/jobArchitecture.service';
 import AddEmployeeModal from '../components/employees/AddEmployeeModal';
@@ -1485,6 +1486,7 @@ export default function JobArchitecturePage() {
   const [bandModal, setBandModal] = useState<any>(null);
   const [areaModal, setAreaModal] = useState(false);
   const [bulkImportOpen, setBulkImportOpen] = useState(false);
+  const [importEmployeesOpen, setImportEmployeesOpen] = useState(false);
 
   const user = useAuthStore(s => s.user);
   const canEdit = user?.role === 'ADMIN' || user?.role === 'HR_MANAGER';
@@ -1768,7 +1770,18 @@ export default function JobArchitecturePage() {
 
       {/* Employees Tab */}
       {activeTab === 'employees' && (
-        <ImportEmployeesModal inline />
+        <div className="space-y-4">
+          <div className="flex items-center justify-end">
+            <button
+              onClick={() => setImportEmployeesOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted transition-colors"
+            >
+              <Upload className="w-4 h-4" />
+              Import Employees
+            </button>
+          </div>
+          <EmployeeDirectoryPage />
+        </div>
       )}
 
       {/* Global modals */}
@@ -1788,6 +1801,10 @@ export default function JobArchitecturePage() {
       <BulkImportJobArchModal
         open={bulkImportOpen}
         onClose={() => { setBulkImportOpen(false); refreshHierarchy(); }}
+      />
+      <ImportEmployeesModal
+        open={importEmployeesOpen}
+        onClose={() => setImportEmployeesOpen(false)}
       />
 
     </div>
