@@ -7,7 +7,6 @@ import { ChatPanel } from '../ChatPanel';
 import { useNotificationStore } from '../../store/notificationStore';
 
 export function AppShell() {
-  // Initialize socket connection
   useSocket();
 
   const { criticalAlert, setCriticalAlert } = useNotificationStore();
@@ -18,8 +17,6 @@ export function AppShell() {
       <Sidebar />
       <TopBar />
 
-      {/* Critical alert banner — shown above page content whenever the AI scan
-          emits a CRITICAL notification via Socket.io */}
       {criticalAlert && (
         <div
           className="fixed top-16 left-16 right-0 z-30 flex items-start gap-3 px-5 py-3
@@ -33,10 +30,7 @@ export function AppShell() {
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
-              onClick={() => {
-                navigate('/notifications');
-                setCriticalAlert(null);
-              }}
+              onClick={() => { navigate('/notifications'); setCriticalAlert(null); }}
               className="text-xs underline text-red-100 hover:text-white whitespace-nowrap"
             >
               View all
@@ -52,10 +46,8 @@ export function AppShell() {
         </div>
       )}
 
-      {/* Main content — offset by sidebar width and topbar height.
-          Extra top padding when the critical banner is visible. */}
       <main
-        className="ml-16 pt-16 min-h-screen transition-all duration-300"
+        className="ml-16 pt-16 min-h-screen"
         style={{ paddingTop: criticalAlert ? '5.5rem' : undefined }}
       >
         <div className="p-6">
@@ -63,7 +55,6 @@ export function AppShell() {
         </div>
       </main>
 
-      {/* Floating AI chat — available on every page */}
       <ChatPanel />
     </div>
   );

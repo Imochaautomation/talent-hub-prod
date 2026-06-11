@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom';
 import {
   Users, DollarSign, TrendingUp, AlertTriangle, Scale,
   BarChart3, Layers, Sparkles, GitBranch,
-  Gift, Award, Settings, Bell, ArrowUpRight, ArrowDownRight,
+  Gift, Award, Bell, ArrowUpRight, ArrowDownRight,
   ChevronRight, Building2, Zap, Info,
 } from 'lucide-react';
+import { useAuthStore } from '../store/authStore';
 import { api } from '../lib/api';
 import { queryKeys, STALE_TIMES } from '../lib/queryClient';
 import { cn, getBandColor } from '../lib/utils';
@@ -30,25 +31,43 @@ const dashboardApi = {
 const BAND_PIE_COLORS = ['#64748b','#3b82f6','#6366f1','#8b5cf6','#a855f7','#f59e0b'];
 const ATTRITION_COLORS: Record<string, string> = { Low: '#22c55e', Medium: '#f59e0b', High: '#ef4444' };
 
+const KPI_ACCENT_COLORS = [
+  'linear-gradient(90deg,#7c3aed,#a78bfa)',
+  'linear-gradient(90deg,#0284c7,#38bdf8)',
+  'linear-gradient(90deg,#059669,#34d399)',
+  'linear-gradient(90deg,#dc2626,#f87171)',
+  'linear-gradient(90deg,#d97706,#fcd34d)',
+];
+
 // ── KPI Card ──────────────────────────────────────────────────
 function KPICard({
-  title, value, subtitle, icon: Icon, color = 'text-foreground', trend, alert,
+  title, value, subtitle, icon: Icon, color = 'text-foreground', trend, alert, accentIndex = 0,
 }: {
   title: string; value: string | number; subtitle?: string;
   icon: React.ElementType; color?: string;
-  trend?: { direction: 'up' | 'down' | 'neutral'; label: string }; alert?: boolean;
+  trend?: { direction: 'up' | 'down' | 'neutral'; label: string };
+  alert?: boolean;
+  accentIndex?: number;
 }) {
   return (
-    <div className={cn('rounded-xl border border-border p-5 bg-card')}>
+    <div
+      className="rounded-[14px] bg-card border border-border relative overflow-hidden pt-[18px] px-[18px] pb-[18px]"
+      style={{ boxShadow: 'var(--shadow-lg)' }}
+    >
+      {/* Colored top accent bar */}
+      <div
+        className="absolute top-0 left-0 right-0 h-[3px] rounded-t-[14px]"
+        style={{ background: alert ? 'linear-gradient(90deg,#dc2626,#f87171)' : KPI_ACCENT_COLORS[accentIndex % KPI_ACCENT_COLORS.length] }}
+      />
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{title}</p>
-          <p className={cn('text-2xl font-bold mt-1.5 truncate', color, alert && 'text-red-600 dark:text-red-400')}>
+          <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-[0.05em]">{title}</p>
+          <p className={cn('text-2xl font-extrabold mt-1 tracking-tight truncate', color, alert && 'text-red-600 dark:text-red-400')}>
             {value}
           </p>
-          {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+          {subtitle && <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>}
           {trend && (
-            <div className={cn('flex items-center gap-1 mt-1.5 text-xs font-medium',
+            <div className={cn('flex items-center gap-1 mt-1.5 text-[11px] font-medium',
               trend.direction === 'up' ? 'text-green-600' : trend.direction === 'down' ? 'text-red-600' : 'text-muted-foreground'
             )}>
               {trend.direction === 'up' ? <ArrowUpRight className="w-3 h-3" /> : trend.direction === 'down' ? <ArrowDownRight className="w-3 h-3" /> : null}
@@ -68,7 +87,8 @@ function KPICard({
 
 function KPISkeleton() {
   return (
-    <div className="rounded-xl border border-border p-5 bg-card">
+    <div className="rounded-[14px] border border-border pt-[18px] px-[18px] pb-[18px] bg-card relative overflow-hidden">
+      <div className="absolute top-0 left-0 right-0 h-[3px] rounded-t-[14px] bg-muted/60 animate-pulse" />
       <div className="h-3 w-24 bg-muted/60 rounded animate-pulse mb-3" />
       <div className="h-7 w-32 bg-muted/60 rounded animate-pulse mb-2" />
       <div className="h-3 w-20 bg-muted/60 rounded animate-pulse" />
@@ -96,6 +116,12 @@ const ACTION_ICON: Record<string, React.ElementType> = {
 };
 
 export default function DashboardPage() {
+  const user = useAuthStore(s => s.user);
+
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const firstName = user?.name?.split(' ')[0] || 'there';
+
   const { data: kpisRaw, isLoading: kpisLoading } = useQuery({
     queryKey: queryKeys.dashboard.kpis,
     queryFn: dashboardApi.getKpis,
@@ -178,12 +204,81 @@ export default function DashboardPage() {
     Math.abs(pct) < 5 ? 'text-green-600' : Math.abs(pct) < 10 ? 'text-amber-600' : 'text-red-600';
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Real-time compensation intelligence overview</p>
+    <div>
+      {/* ── Hero Banner — bleeds out of AppShell p-6 ── */}
+      <div
+        className="-mx-6 -mt-6 relative overflow-hidden"
+        style={{
+          background: 'linear-gradient(135deg, #7c3aed 0%, #4f46e5 55%, #06b6d4 100%)',
+          padding: '26px 32px 64px',
+        }}
+      >
+        {/* Decorative circles */}
+        <div
+          className="absolute rounded-full pointer-events-none"
+          style={{ top: -50, right: -50, width: 220, height: 220, background: 'rgba(255,255,255,0.06)' }}
+        />
+        <div
+          className="absolute rounded-full pointer-events-none"
+          style={{ bottom: -30, left: '32%', width: 160, height: 160, background: 'rgba(255,255,255,0.04)' }}
+        />
+        <div className="relative z-10 flex items-center justify-between gap-4">
+          <div>
+            <h1 className="text-[22px] font-extrabold text-white tracking-tight">
+              {greeting}, {firstName}! 👋
+            </h1>
+            <p className="text-[12px] mt-1" style={{ color: 'rgba(255,255,255,0.7)' }}>
+              FY 2025–26 · Compensation Intelligence Platform · Live data
+            </p>
+          </div>
+          <Link to="/leadership-report">
+            <button
+              className="text-[12px] font-semibold text-white flex-shrink-0 transition-colors hover:bg-white/20"
+              style={{
+                padding: '7px 15px',
+                borderRadius: 9,
+                background: 'rgba(255,255,255,0.15)',
+                border: '1px solid rgba(255,255,255,0.25)',
+              }}
+            >
+              View Leadership Report →
+            </button>
+          </Link>
+        </div>
       </div>
 
+      {/* ── KPI Cards — float below hero ── */}
+      <div className="-mt-10 mb-6 relative z-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          {kpisLoading ? (
+            Array.from({ length: 5 }).map((_, i) => <KPISkeleton key={i} />)
+          ) : kpis ? (
+            <>
+              <KPICard title="Total Employees" value={kpis.totalEmployees?.toLocaleString('en-IN')} icon={Users} subtitle="Active headcount" accentIndex={0} />
+              <KPICard title="Annual CTC" value={`₹${(kpis.totalAnnualCtcCrores ?? 0).toFixed(1)}Cr`} icon={DollarSign} subtitle="Total spend" accentIndex={1} />
+              <KPICard
+                title="Avg Compa-Ratio"
+                value={`${(kpis.avgCompaRatio ?? 0).toFixed(1)}%`}
+                icon={TrendingUp}
+                subtitle="Market position"
+                color={(kpis.avgCompaRatio ?? 0) < 80 ? 'text-red-600' : (kpis.avgCompaRatio ?? 0) > 120 ? 'text-orange-600' : 'text-green-600'}
+                accentIndex={2}
+              />
+              <KPICard title="Outside Bands" value={kpis.employeesOutsideBand ?? 0} icon={AlertTriangle} subtitle="Need attention" alert={(kpis.employeesOutsideBand ?? 0) > 0} accentIndex={3} />
+              <KPICard
+                title="Gender Pay Gap"
+                value={`${Math.abs(kpis.genderPayGapPercent ?? 0).toFixed(1)}%`}
+                icon={Scale}
+                subtitle="Male vs Female avg"
+                color={gapColor(kpis.genderPayGapPercent ?? 0)}
+                accentIndex={4}
+              />
+            </>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="space-y-6">
       {/* ── AI Summary ── */}
       {aiSummary && (
         <div className="rounded-xl border border-primary/20 bg-primary/5 px-5 py-3 flex items-start gap-3">
@@ -224,33 +319,6 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
-
-      {/* ── Row 1: KPI Cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {kpisLoading ? (
-          Array.from({ length: 5 }).map((_, i) => <KPISkeleton key={i} />)
-        ) : kpis ? (
-          <>
-            <KPICard title="Total Employees" value={kpis.totalEmployees?.toLocaleString('en-IN')} icon={Users} subtitle="Active headcount" />
-            <KPICard title="Annual CTC" value={`₹${(kpis.totalAnnualCtcCrores ?? 0).toFixed(1)}Cr`} icon={DollarSign} subtitle="Total compensation spend" />
-            <KPICard
-              title="Avg Compa-Ratio"
-              value={`${(kpis.avgCompaRatio ?? 0).toFixed(1)}%`}
-              icon={TrendingUp}
-              subtitle="Market position"
-              color={(kpis.avgCompaRatio ?? 0) < 80 ? 'text-red-600' : (kpis.avgCompaRatio ?? 0) > 120 ? 'text-orange-600' : 'text-green-600'}
-            />
-            <KPICard title="Outside Bands" value={kpis.employeesOutsideBand ?? 0} icon={AlertTriangle} subtitle="Need attention" alert={(kpis.employeesOutsideBand ?? 0) > 0} />
-            <KPICard
-              title="Gender Pay Gap"
-              value={`${Math.abs(kpis.genderPayGapPercent ?? 0).toFixed(1)}%`}
-              icon={Scale}
-              subtitle="Male vs Female avg"
-              color={gapColor(kpis.genderPayGapPercent ?? 0)}
-            />
-          </>
-        ) : null}
-      </div>
 
       {/* ── Row 2: Salary Dist + Band Dist ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -307,7 +375,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Row 3: Comp vs Performance Scatter + Dept Pay Equity Heatmap ── */}
+      {/* ── Row 2 + 3: Charts ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         {/* Pay–Performance Risk List */}
         <div className="rounded-xl border border-border bg-card p-5">
@@ -436,6 +504,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      </div>{/* end space-y-6 */}
     </div>
   );
 }

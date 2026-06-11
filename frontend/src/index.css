@@ -4,56 +4,72 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Page background — clearly purple/indigo tinted */
+    --background: 248 60% 94%;
+    --foreground: 244 47% 18%;
+
+    /* Cards stay white so they pop against the purple background */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 244 47% 18%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 239 84% 67%;
-    --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --popover-foreground: 244 47% 18%;
+
+    /* Primary — deep violet matching sidebar */
+    --primary: 262 83% 58%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Secondary / muted / accent — purple-tinted surfaces */
+    --secondary: 248 50% 92%;
+    --secondary-foreground: 244 47% 18%;
+    --muted: 248 50% 92%;
+    --muted-foreground: 248 20% 46%;
+    --accent: 248 50% 92%;
+    --accent-foreground: 244 47% 18%;
+
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 239 84% 67%;
-    --radius: 0.5rem;
-    --sidebar: 222 47% 11%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-accent: 239 84% 67%;
-    --sidebar-border: 217 33% 17%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders — clearly purple-tinted */
+    --border: 248 60% 88%;
+    --input: 248 60% 88%;
+    --ring: 262 83% 58%;
+    --radius: 0.875rem;
+
+    /* Sidebar CSS vars (sidebar itself uses inline gradient) */
+    --sidebar: 244 47% 18%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-accent: 262 83% 58%;
+    --sidebar-border: 240 25% 25%;
+
+    --shadow: 0 2px 8px rgba(124,58,237,0.10), 0 1px 3px rgba(0,0,0,0.06);
+    --shadow-lg: 0 8px 24px rgba(124,58,237,0.15), 0 2px 6px rgba(0,0,0,0.06);
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 47% 8%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 47% 8%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 239 84% 67%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 239 84% 67%;
-    --sidebar: 222 47% 7%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-accent: 239 84% 67%;
-    --sidebar-border: 217 33% 13%;
+    /* Dark mode uses the sidebar's indigo/purple family — NOT near-black */
+    --background: 244 46% 12%;
+    --foreground: 0 0% 95%;
+    --card: 244 40% 17%;
+    --card-foreground: 0 0% 95%;
+    --popover: 244 40% 17%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 262 83% 68%;
+    --primary-foreground: 244 47% 10%;
+    --secondary: 244 35% 22%;
+    --secondary-foreground: 0 0% 90%;
+    --muted: 244 35% 22%;
+    --muted-foreground: 245 25% 62%;
+    --accent: 244 35% 22%;
+    --accent-foreground: 0 0% 95%;
+    --destructive: 0 62.8% 45%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 244 35% 28%;
+    --input: 244 35% 28%;
+    --ring: 262 83% 68%;
+    --sidebar: 244 47% 12%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-accent: 262 83% 58%;
+    --sidebar-border: 244 35% 22%;
   }
 }
 
