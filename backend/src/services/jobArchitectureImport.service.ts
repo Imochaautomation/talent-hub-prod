@@ -275,7 +275,7 @@ function isMatrixSheet(ws: XLSX.WorkSheet): boolean {
 }
 
 function hasDetailColumns(ws: XLSX.WorkSheet): boolean {
-  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '', range: 0 });
+  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
   if (raw.length === 0) return false;
   const normKeys = Object.keys(raw[0]).map(normaliseKey);
   // Must have BOTH a title-like column AND a band/level column
@@ -329,7 +329,7 @@ function parseSimpleListSheet(ws: XLSX.WorkSheet, sheetName: string): { rows: Pa
 }
 
 function isEmployeeSheet(ws: XLSX.WorkSheet): boolean {
-  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '', range: 0 });
+  const raw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: '' });
   if (raw.length === 0) return false;
   const normKeys = Object.keys(raw[0]).map(normaliseKey);
   return normKeys.some(k => k.includes('employee id') || k.includes('first name') || k.includes('annual ctc'));
